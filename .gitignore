@@ -1,0 +1,31 @@
+# Ignore build outputs
+bin/
+obj/
+
+# User-specific files
+*.user
+*.suo
+*.vs/
+*.vscode/
+
+# Logs and database
+*.log
+logs/
+appsettings.Development.json  # Optional: If you don’t want to expose local configs
+
+# Package dependencies
+node_modules/
+wwwroot/lib/
+wwwroot/node_modules/
+
+# .NET Core-specific
+project.lock.json
+project.assets.json
+.DS_Store
+
+# Environment files
+.env
+
+# IDE-specific
+.vs/
+.idea/

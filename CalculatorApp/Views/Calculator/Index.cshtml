@@ -1,0 +1,42 @@
+﻿@model CalculatorApp.Models.CalculatorModel
+
+<h1>Calculator App</h1>
+<h3>Let's Solve it'</h3>
+
+@* Creating a form that will take two values and click the btn for the action
+    based on the btn click will change the asp-action and hence perform the action as def in the controller
+*@
+<form method="post" id="calculatorForm">
+    <div>
+        <label for="Num1">Number 1:</label>
+        <input type="number" name="Num1" value="@Model.Num1" required />
+    </div>
+    <div>
+        <label for="Num2">Number 2:</label>
+        <input type="number" name="Num2" value="@Model.Num2" required />
+    </div>
+
+
+     @* Buttons that update the action based on the operation
+     here i am using @url.Action to define the action on a particluar controller *@
+     
+    <button type="submit" onclick="document.getElementById('calculatorForm').action = '@Url.Action("Add", "Calculator")';">Add</button>
+    <button type="submit" onclick="document.getElementById('calculatorForm').action = '@Url.Action("Subtract", "Calculator")';">Subtract</button>
+    <button type="submit" onclick="document.getElementById('calculatorForm').action = '@Url.Action("Multiply", "Calculator")';">Multiply</button>
+    <button type="submit" onclick="document.getElementById('calculatorForm').action = '@Url.Action("Divide", "Calculator")';">Divide</button>
+
+</form>
+
+@if (Model.Result.HasValue)
+{
+    <div>
+        <p>Result: @Model.Result</p>
+    </div>
+}
+else if (!string.IsNullOrEmpty(ViewBag.ErrorMessage))
+{
+    <div>
+        <p style="color: red;">@ViewBag.ErrorMessage</p>
+    </div>
+}
+
