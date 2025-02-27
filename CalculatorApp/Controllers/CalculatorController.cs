@@ -18,7 +18,9 @@ namespace CalculatorApp.Controllers
         // now some post requests using diff methods that will take data from view, use the model 
         // class , update the data and reshare it to the view 
 
-        // ADD Method
+        // Calc Methods starts
+        // ADD Method 
+        
 
         [HttpPost] // do the post request to the url
         public IActionResult Add(CalculatorModel model)
