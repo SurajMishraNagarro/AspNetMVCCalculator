@@ -39,6 +39,9 @@ jobs:
       - name: Restore Dependencies
         run: dotnet restore
 
+      - name: Build Solution
+        run: dotnet build --configuration Release --no-restore
+      
       - name: Run Unit Tests with Code Coverage
         run: dotnet test --configuration Release --no-build --collect:"XPlat Code Coverage" --results-directory TestResults
 
