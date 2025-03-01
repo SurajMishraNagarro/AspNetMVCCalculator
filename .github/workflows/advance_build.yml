@@ -29,7 +29,7 @@ jobs:
           name: build-artifacts
           path: bin/Release
 
-  test:
+  test-coverage:
     needs: build 
     runs-on: self-hosted
     steps:
@@ -40,29 +40,16 @@ jobs:
         run: dotnet restore
 
       - name: Run Unit Tests with Code Coverage
-        run: dotnet test --logger trx --collect:"XPlat Code Coverage" --results-directory TestResults
+        run: dotnet test --configuration Release --no-build --collect:"XPlat Code Coverage" --results-directory TestResults
 
       - name: Upload Test Results
         uses: actions/upload-artifact@v4
         with:
           name: test-results
-          path: TestResults
-
-  coverage:
-    needs: test 
-    runs-on: self-hosted
-    steps:
-      - name: Checkout Repository
-        uses: actions/checkout@v4
-
-      - name: Install ReportGenerator
-        run: dotnet tool install --global reportgenerator
-
-      - name: Generate Coverage Report
-        run: reportgenerator -reports:TestResults/**/coverage.cobertura.xml -targetdir:CoverageReport -reporttypes:Html
-
-      - name: Upload Coverage Report
+          path: TestResults/**/*.trx
+        
+      - name: Upload Code Coverage Results
         uses: actions/upload-artifact@v4
         with:
-          name: coverage-report
-          path: CoverageReport
+          name: code-coverage
+          path: TestResults/**/coverage.cobertura.xml
