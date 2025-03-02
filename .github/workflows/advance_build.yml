@@ -25,11 +25,12 @@ jobs:
 
       - name: Determine Version Tag
         id: versioning
+        shell: pwsh
         run: |
-          BRANCH_NAME=$(echo "${{ github.ref_name }}" | sed 's/\//-/g')
-          SHORT_HASH=$(git rev-parse --short HEAD)
-          VERSION_TAG="${BRANCH_NAME}-${SHORT_HASH}"
-          echo "VERSION_TAG=$VERSION_TAG" >> $GITHUB_ENV
+          $BranchName = "${{ github.ref_name }}".Replace("/", "-")
+          $ShortHash = $(git rev-parse --short HEAD)
+          $VersionTag = "$BranchName-$ShortHash"
+          echo "VERSION_TAG=$VersionTag" | Out-File -FilePath $env:GITHUB_ENV -Encoding utf8
 
       - name: Upload Build Artifacts with Versioning
         uses: actions/upload-artifact@v4
