@@ -70,7 +70,7 @@ jobs:
           retention-days: 7
 
   notify:
-    needs: [build,]
+    needs: [build, test-coverage]
     runs-on: self-hosted
     steps:
       - name: Send Email on Failure
