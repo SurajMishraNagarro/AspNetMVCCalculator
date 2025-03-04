@@ -69,6 +69,7 @@ jobs:
   
   sonar:
     name: SonarCloud Analysis
+    needs: [build,test-coverage]
     runs-on: self-hosted
     steps:
     - name: Checkout Repository
