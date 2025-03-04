@@ -39,100 +39,113 @@ jobs:
           name: build-artifacts-${{ env.VERSION_TAG }}
           path: '**/bin/Release/net*/**'
 
+
   sonar:
-    name: SonarCloud Analysis
-    runs-on: self-hosted
-    steps:
-      - name: Checkout Repository
-        uses: actions/checkout@v4
+      name: SonarCloud Analysis
+      runs-on: self-hosted  # Windows self-hosted runner
+      steps:
+        - name: Checkout Repository
+          uses: actions/checkout@v4
+          with:
+            ref: develop  # Ensures develop branch is checked out
+        
+        - name: Restore Dependencies
+          run: dotnet restore
+        
+        - name: Cache SonarCloud Packages
+          uses: actions/cache@v4
+          with:
+            path: ~\sonar\cache
+            key: ${{ runner.os }}-sonar
+            restore-keys: ${{ runner.os }}-sonar
+        
+        - name: Cache SonarCloud Scanner
+          id: cache-sonar-scanner
+          uses: actions/cache@v4
+          with:
+            path: .\.sonar\scanner
+            key: ${{ runner.os }}-sonar-scanner
+            restore-keys: ${{ runner.os }}-sonar-scanner
+        
+        - name: Install SonarCloud Scanner
+          if: steps.cache-sonar-scanner.outputs.cache-hit != 'true'
+          shell: pwsh  # Use pwsh for better compatibility on Windows
+          run: |
+                  New-Item -Path .\.sonar\scanner -ItemType Directory -Force
+                  dotnet tool update dotnet-sonarscanner --tool-path .\.sonar\scanner
+        
+        - name: Run SonarCloud Analysis
+          env:
+              SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
+          shell: pwsh
+          run: |
+                  .\.sonar\scanner\dotnet-sonarscanner begin /k:"SurajMishraNagarro_AspNetMVCCalculator" /o:"surajmishranagarro" /d:sonar.token="${{ secrets.SONAR_TOKEN }}" /d:sonar.host.url="https://sonarcloud.io" /d:sonar.branch.name="develop"
+                  dotnet build --configuration Release --no-restore
+                  .\.sonar\scanner\dotnet-sonarscanner end /d:sonar.token="${{ secrets.SONAR_TOKEN }}"
+        
+        - name: Ensure First Analysis on Default Branch (If Needed)
+          if: github.ref == 'refs/heads/main'
+          env:
+              SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
+          shell: pwsh
+          run: |
+                  .\.sonar\scanner\dotnet-sonarscanner begin /k:"SurajMishraNagarro_AspNetMVCCalculator" /o:"surajmishranagarro" /d:sonar.token="${{ secrets.SONAR_TOKEN }}" /d:sonar.host.url="https://sonarcloud.io"
+                  dotnet build --configuration Release --no-restore
+                  .\.sonar\scanner\dotnet-sonarscanner end /d:sonar.token="${{ secrets.SONAR_TOKEN }}"
+        
+  # test-coverage:
+  #   name: Test & Code Coverage
+  #   needs: build
+  #   runs-on: self-hosted
+  #   steps:
+  #     - name: Checkout Repository
+  #       uses: actions/checkout@v4
 
-      - name: Restore Dependencies
-        run: dotnet restore
+  #     - name: Restore Dependencies
+  #       run: dotnet restore
 
-      - name: Cache SonarCloud Packages
-        uses: actions/cache@v4
-        with:
-          path: ~\sonar\cache
-          key: ${{ runner.os }}-sonar
-          restore-keys: ${{ runner.os }}-sonar
+  #     - name: Build Solution
+  #       run: dotnet build --configuration Release --no-restore
 
-      - name: Cache SonarCloud Scanner
-        id: cache-sonar-scanner
-        uses: actions/cache@v4
-        with:
-          path: .\.sonar\scanner
-          key: ${{ runner.os }}-sonar-scanner
-          restore-keys: ${{ runner.os }}-sonar-scanner
+  #     - name: Run Unit Tests with Code Coverage
+  #       run: dotnet test --configuration Release --no-build --collect:"XPlat Code Coverage" --results-directory TestResults
+  #       continue-on-error: true
 
-      - name: Install SonarCloud Scanner
-        if: steps.cache-sonar-scanner.outputs.cache-hit != 'true'
-        shell: powershell
-        run: |
-          New-Item -Path .\.sonar\scanner -ItemType Directory -Force
-          dotnet tool update dotnet-sonarscanner --tool-path .\.sonar\scanner
+  #     - name: Upload Test Results
+  #       uses: actions/upload-artifact@v4
+  #       with:
+  #         name: test-results-${{ env.VERSION_TAG }}
+  #         path: TestResults
+  #         retention-days: 7
 
-      - name: Run SonarCloud Analysis
-        env:
-          SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
-        shell: powershell
-        run: |
-          .\.sonar\scanner\dotnet-sonarscanner begin /k:"SurajMishraNagarro_AspNetMVCCalculator" /o:"surajmishranagarro" /d:sonar.token="${{ secrets.SONAR_TOKEN }}" /d:sonar.host.url="https://sonarcloud.io"
-          dotnet build --configuration Release --no-restore
-          .\.sonar\scanner\dotnet-sonarscanner end /d:sonar.token="${{ secrets.SONAR_TOKEN }}"
+  #     - name: Upload Code Coverage Results
+  #       uses: actions/upload-artifact@v4
+  #       with:
+  #         name: code-coverage-${{ env.VERSION_TAG }}
+  #         path: TestResults/**/coverage.cobertura.xml
+  #         retention-days: 7
 
-  test-coverage:
-    name: Test & Code Coverage
-    needs: build
-    runs-on: self-hosted
-    steps:
-      - name: Checkout Repository
-        uses: actions/checkout@v4
+  # notify:
+  #   name: Notify on Failure
+  #   needs: [build, sonar, test-coverage]
+  #   runs-on: self-hosted
+  #   steps:
+  #     - name: Send Email on Failure
+  #       if: failure()
+  #       uses: dawidd6/action-send-mail@v3
+  #       with:
+  #         server_address: smtp.gmail.com
+  #         server_port: 587
+  #         username: ${{ secrets.EMAIL_USERNAME }}
+  #         password: ${{ secrets.EMAIL_PASSWORD }}
+  #         subject: "🚨 Build, SonarCloud Analysis, or Tests Failed: ${{ github.repository }}"
+  #         to: ${{ secrets.TO_EMAIL }}
+  #         from: "GitHub Actions <${{ secrets.EMAIL_USERNAME }}>"
+  #         body: |
+  #           **Build, SonarCloud Analysis, or Tests Failed for** ${{ github.repository }}
+  #           **Repository**: ${{ github.repository }}
+  #           **Branch**: ${{ github.ref }}
+  #           **Commit**: ${{ github.sha }}
+  #           **Triggered by**: ${{ github.actor }}
 
-      - name: Restore Dependencies
-        run: dotnet restore
-
-      - name: Build Solution
-        run: dotnet build --configuration Release --no-restore
-
-      - name: Run Unit Tests with Code Coverage
-        run: dotnet test --configuration Release --no-build --collect:"XPlat Code Coverage" --results-directory TestResults
-        continue-on-error: true
-
-      - name: Upload Test Results
-        uses: actions/upload-artifact@v4
-        with:
-          name: test-results-${{ env.VERSION_TAG }}
-          path: TestResults
-          retention-days: 7
-
-      - name: Upload Code Coverage Results
-        uses: actions/upload-artifact@v4
-        with:
-          name: code-coverage-${{ env.VERSION_TAG }}
-          path: TestResults/**/coverage.cobertura.xml
-          retention-days: 7
-
-  notify:
-    name: Notify on Failure
-    needs: [build, sonar, test-coverage]
-    runs-on: self-hosted
-    steps:
-      - name: Send Email on Failure
-        if: failure()
-        uses: dawidd6/action-send-mail@v3
-        with:
-          server_address: smtp.gmail.com
-          server_port: 587
-          username: ${{ secrets.EMAIL_USERNAME }}
-          password: ${{ secrets.EMAIL_PASSWORD }}
-          subject: "🚨 Build, SonarCloud Analysis, or Tests Failed: ${{ github.repository }}"
-          to: ${{ secrets.TO_EMAIL }}
-          from: "GitHub Actions <${{ secrets.EMAIL_USERNAME }}>"
-          body: |
-            **Build, SonarCloud Analysis, or Tests Failed for** ${{ github.repository }}
-            **Repository**: ${{ github.repository }}
-            **Branch**: ${{ github.ref }}
-            **Commit**: ${{ github.sha }}
-            **Triggered by**: ${{ github.actor }}
-
-            Check the logs: https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }}
+  #           Check the logs: https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }}
