@@ -68,33 +68,48 @@ jobs:
           retention-days: 7
   
   sonar:
-    needs: build
+    name: SonarCloud Analysis
     runs-on: self-hosted
     steps:
-      - name: Checkout Repository
-        uses: actions/checkout@v4
+    - name: Checkout Repository
+      uses: actions/checkout@v4
 
-      - name: Install .NET SonarScanner
-        run: dotnet tool install --global dotnet-sonarscanner
+    - name: Restore Dependencies
+      run: dotnet restore
 
-      - name: Begin SonarCloud Analysis
-        run: |
-          dotnet sonarscanner begin /k:"YourProjectKey" /o:"YourOrg" /d:sonar.login="${{ secrets.SONAR_TOKEN }}"
-        shell: powershell
+    - name: Cache SonarCloud Packages
+      uses: actions/cache@v4
+      with:
+        path: ~\sonar\cache
+        key: ${{ runner.os }}-sonar
+        restore-keys: ${{ runner.os }}-sonar
 
+    - name: Cache SonarCloud Scanner
+      id: cache-sonar-scanner
+      uses: actions/cache@v4
+      with:
+        path: .\.sonar\scanner
+        key: ${{ runner.os }}-sonar-scanner
+        restore-keys: ${{ runner.os }}-sonar-scanner
 
-      - name: Build for SonarCloud Analysis
-        run: dotnet build --configuration Release
-        shell: powershell
+    - name: Install SonarCloud Scanner
+      if: steps.cache-sonar-scanner.outputs.cache-hit != 'true'
+      shell: powershell
+      run: |
+        New-Item -Path .\.sonar\scanner -ItemType Directory -Force
+        dotnet tool update dotnet-sonarscanner --tool-path .\.sonar\scanner
 
-
-      - name: End SonarCloud Analysis
-        run: |
-          dotnet sonarscanner end /d:sonar.login="${{ secrets.SONAR_TOKEN }}"
-        shell: powershell
+    - name: Run SonarCloud Analysis
+      env:
+        SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
+      shell: powershell
+      run: |
+        .\.sonar\scanner\dotnet-sonarscanner begin /k:"SurajMishraNagarro_AspNetMVCCalculator" /o:"surajmishranagarro" /d:sonar.token="${{ secrets.SONAR_TOKEN }}" /d:sonar.host.url="https://sonarcloud.io"
+        dotnet build --configuration Release --no-restore
+        .\.sonar\scanner\dotnet-sonarscanner end /d:sonar.token="${{ secrets.SONAR_TOKEN }}"
 
   notify:
-    needs: [build, test-coverage]
+    needs: [build,sonar, test-coverage]
     runs-on: self-hosted
     steps:
       - name: Send Email on Failure
@@ -105,7 +120,7 @@ jobs:
           server_port: 587
           username: ${{ secrets.EMAIL_USERNAME }}
           password: ${{ secrets.EMAIL_PASSWORD }}
-          subject: "🚨 Build or Tests Failed: ${{ github.repository }}"
+          subject: " Build or Tests Succeded: ${{ github.repository }}"
           to: ${{ secrets.TO_EMAIL }}
           from: "GitHub Actions <${{ secrets.EMAIL_USERNAME }}>"
           body: |
