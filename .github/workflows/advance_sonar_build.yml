@@ -3,10 +3,8 @@ name: Advanced Build and Test ASP.NET Core App
 on:
   push:
     branches:
-      - develop
-  pull_request:
-    branches:
       - main
+  
   schedule:
     - cron: '30 11 * * 3,5' 
 
@@ -68,13 +66,39 @@ jobs:
           name: code-coverage-${{ env.VERSION_TAG }}
           path: TestResults/**/coverage.cobertura.xml
           retention-days: 7
+  
+  sonar:
+    needs: build
+    runs-on: self-hosted
+    steps:
+      - name: Checkout Repository
+        uses: actions/checkout@v4
+
+      - name: Install .NET SonarScanner
+        run: dotnet tool install --global dotnet-sonarscanner
+
+      - name: Begin SonarCloud Analysis
+        run: |
+          dotnet sonarscanner begin /k:"YourProjectKey" /o:"YourOrg" /d:sonar.login="${{ secrets.SONAR_TOKEN }}"
+        shell: powershell
+
+
+      - name: Build for SonarCloud Analysis
+        run: dotnet build --configuration Release
+        shell: powershell
+
+
+      - name: End SonarCloud Analysis
+        run: |
+          dotnet sonarscanner end /d:sonar.login="${{ secrets.SONAR_TOKEN }}"
+        shell: powershell
 
   notify:
     needs: [build, test-coverage]
     runs-on: self-hosted
     steps:
       - name: Send Email on Failure
-        if: failure()
+        if: success()
         uses: dawidd6/action-send-mail@v3
         with:
           server_address: smtp.gmail.com
