@@ -68,47 +68,53 @@ jobs:
           retention-days: 7
   
   sonar:
-    name: SonarCloud Analysis
-    needs: [build,test-coverage]
-    runs-on: self-hosted
-    steps:
-    - name: Checkout Repository
-      uses: actions/checkout@v4
-
-    - name: Restore Dependencies
-      run: dotnet restore
-
-    - name: Cache SonarCloud Packages
-      uses: actions/cache@v4
-      with:
-        path: ~\sonar\cache
-        key: ${{ runner.os }}-sonar
-        restore-keys: ${{ runner.os }}-sonar
-
-    - name: Cache SonarCloud Scanner
-      id: cache-sonar-scanner
-      uses: actions/cache@v4
-      with:
-        path: .\.sonar\scanner
-        key: ${{ runner.os }}-sonar-scanner
-        restore-keys: ${{ runner.os }}-sonar-scanner
-
-    - name: Install SonarCloud Scanner
-      if: steps.cache-sonar-scanner.outputs.cache-hit != 'true'
-      shell: powershell
-      run: |
-        New-Item -Path .\.sonar\scanner -ItemType Directory -Force
-        dotnet tool update dotnet-sonarscanner --tool-path .\.sonar\scanner
-
-    - name: Run SonarCloud Analysis
-      env:
-        SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
-      shell: powershell
-      run: |
-        .\.sonar\scanner\dotnet-sonarscanner begin /k:"SurajMishraNagarro_AspNetMVCCalculator" /o:"surajmishranagarro" /d:sonar.token="${{ secrets.SONAR_TOKEN }}" /d:sonar.host.url="https://sonarcloud.io"
-        dotnet build --configuration Release --no-restore
-        .\.sonar\scanner\dotnet-sonarscanner end /d:sonar.token="${{ secrets.SONAR_TOKEN }}"
-
+      name: SonarCloud Analysis
+      needs: [build, test-coverage]
+      runs-on: self-hosted
+      steps:
+        - name: Checkout Repository
+          uses: actions/checkout@v4
+        
+        - name: Restore Dependencies
+          run: dotnet restore
+        
+        - name: Download Coverage Report
+          uses: actions/download-artifact@v4
+          with:
+            name: code-coverage-${{ env.VERSION_TAG }}
+            path: TestResults
+        
+        - name: Cache SonarCloud Packages
+          uses: actions/cache@v4
+          with:
+            path: ~\sonar\cache
+            key: ${{ runner.os }}-sonar
+            restore-keys: ${{ runner.os }}-sonar
+        
+        - name: Cache SonarCloud Scanner
+          id: cache-sonar-scanner
+          uses: actions/cache@v4
+          with:
+            path: .\.sonar\scanner
+            key: ${{ runner.os }}-sonar-scanner
+            restore-keys: ${{ runner.os }}-sonar-scanner
+        
+        - name: Install SonarCloud Scanner
+          if: steps.cache-sonar-scanner.outputs.cache-hit != 'true'
+          shell: powershell
+          run: |
+                New-Item -Path .\.sonar\scanner -ItemType Directory -Force
+                dotnet tool update dotnet-sonarscanner --tool-path .\.sonar\scanner
+        
+        - name: Run SonarCloud Analysis
+          env:
+            SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
+          shell: powershell
+          run: |
+                .\.sonar\scanner\dotnet-sonarscanner begin /k:"SurajMishraNagarro_AspNetMVCCalculator" /o:"surajmishranagarro" /d:sonar.token="${{ secrets.SONAR_TOKEN }}" /d:sonar.host.url="https://sonarcloud.io" /d:sonar.coverageReportPaths="TestResults/**/coverage.cobertura.xml"
+                dotnet build --configuration Release --no-restore
+                .\.sonar\scanner\dotnet-sonarscanner end /d:sonar.token="${{ secrets.SONAR_TOKEN }}"
+        
   notify:
     needs: [build,sonar, test-coverage]
     runs-on: self-hosted
