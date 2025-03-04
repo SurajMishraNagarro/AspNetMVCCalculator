@@ -36,36 +36,36 @@ jobs:
           name: build-artifacts-${{ env.VERSION_TAG }}
           path: '**/bin/Release/net*/**'
 
-  # test-coverage:
-  #   needs: build
-  #   runs-on: self-hosted
-  #   steps:
-  #     - name: Checkout Repository
-  #       uses: actions/checkout@v4
+  test-coverage:
+    needs: build
+    runs-on: self-hosted
+    steps:
+      - name: Checkout Repository
+        uses: actions/checkout@v4
 
-  #     - name: Restore Dependencies
-  #       run: dotnet restore
+      - name: Restore Dependencies
+        run: dotnet restore
 
-  #     - name: Build Solution
-  #       run: dotnet build --configuration Release --no-restore
+      - name: Build Solution
+        run: dotnet build --configuration Release --no-restore
 
-  #     - name: Run Unit Tests with Code Coverage
-  #       run: dotnet test --configuration Release --no-build --collect:"XPlat Code Coverage" --results-directory TestResults
-  #       continue-on-error: true
+      - name: Run Unit Tests with Code Coverage
+        run: dotnet test --configuration Release --no-build --collect:"XPlat Code Coverage" --results-directory TestResults
+        continue-on-error: true
 
-  #     - name: Upload Test Results
-  #       uses: actions/upload-artifact@v4
-  #       with:
-  #         name: test-results-${{ env.VERSION_TAG }}
-  #         path: TestResults
-  #         retention-days: 7
+      - name: Upload Test Results
+        uses: actions/upload-artifact@v4
+        with:
+          name: test-results-${{ env.VERSION_TAG }}
+          path: TestResults
+          retention-days: 7
 
-  #     - name: Upload Code Coverage Results
-  #       uses: actions/upload-artifact@v4
-  #       with:
-  #         name: code-coverage-${{ env.VERSION_TAG }}
-  #         path: TestResults/**/coverage.cobertura.xml
-  #         retention-days: 7
+      - name: Upload Code Coverage Results
+        uses: actions/upload-artifact@v4
+        with:
+          name: code-coverage-${{ env.VERSION_TAG }}
+          path: TestResults/**/coverage.cobertura.xml
+          retention-days: 7
   
   sonar:
     name: SonarCloud Analysis
@@ -108,26 +108,26 @@ jobs:
         dotnet build --configuration Release --no-restore
         .\.sonar\scanner\dotnet-sonarscanner end /d:sonar.token="${{ secrets.SONAR_TOKEN }}"
 
-  # notify:
-  #   needs: [build,sonar, test-coverage]
-  #   runs-on: self-hosted
-  #   steps:
-  #     - name: Send Email on Failure
-  #       if: success()
-  #       uses: dawidd6/action-send-mail@v3
-  #       with:
-  #         server_address: smtp.gmail.com
-  #         server_port: 587
-  #         username: ${{ secrets.EMAIL_USERNAME }}
-  #         password: ${{ secrets.EMAIL_PASSWORD }}
-  #         subject: " Build or Tests Succeded: ${{ github.repository }}"
-  #         to: ${{ secrets.TO_EMAIL }}
-  #         from: "GitHub Actions <${{ secrets.EMAIL_USERNAME }}>"
-  #         body: |
-  #           **Build or Tests Failed for** ${{ github.repository }}
-  #           **Repository**: ${{ github.repository }}
-  #           **Branch**: ${{ github.ref }}
-  #           **Commit**: ${{ github.sha }}
-  #           **Triggered by**: ${{ github.actor }}
+  notify:
+    needs: [build,sonar, test-coverage]
+    runs-on: self-hosted
+    steps:
+      - name: Send Email on Failure
+        if: success()
+        uses: dawidd6/action-send-mail@v3
+        with:
+          server_address: smtp.gmail.com
+          server_port: 587
+          username: ${{ secrets.EMAIL_USERNAME }}
+          password: ${{ secrets.EMAIL_PASSWORD }}
+          subject: " Build or Tests Succeded: ${{ github.repository }}"
+          to: ${{ secrets.TO_EMAIL }}
+          from: "GitHub Actions <${{ secrets.EMAIL_USERNAME }}>"
+          body: |
+            **Build or Tests Failed for** ${{ github.repository }}
+            **Repository**: ${{ github.repository }}
+            **Branch**: ${{ github.ref }}
+            **Commit**: ${{ github.sha }}
+            **Triggered by**: ${{ github.actor }}
 
-  #           Check the logs: https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }}
+            Check the logs: https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }}
