@@ -69,10 +69,10 @@ jobs:
         
         - name: Install SonarCloud Scanner
           if: steps.cache-sonar-scanner.outputs.cache-hit != 'true'
-          shell: pwsh  # Use pwsh for better compatibility on Windows
+          shell: powershell
           run: |
-                  New-Item -Path .\.sonar\scanner -ItemType Directory -Force
-                  dotnet tool update dotnet-sonarscanner --tool-path .\.sonar\scanner
+              New-Item -Path .\.sonar\scanner -ItemType Directory -Force
+              dotnet tool update dotnet-sonarscanner --tool-path .\.sonar\scanner
         
         - name: Run SonarCloud Analysis
           env:
