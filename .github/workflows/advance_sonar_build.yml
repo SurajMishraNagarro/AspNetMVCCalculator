@@ -82,7 +82,7 @@ jobs:
           uses: actions/download-artifact@v4
           with:
             name: code-coverage-${{ env.VERSION_TAG }}
-            path: TestResults/CoverageReports/coverage.cobertura.xml
+            path: TestResults/CoverageReports
         
         - name: Cache SonarCloud Packages
           uses: actions/cache@v4
