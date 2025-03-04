@@ -39,60 +39,50 @@ jobs:
           name: build-artifacts-${{ env.VERSION_TAG }}
           path: '**/bin/Release/net*/**'
 
-
   sonar:
-      name: SonarCloud Analysis
-      runs-on: self-hosted  # Windows self-hosted runner
-      steps:
-        - name: Checkout Repository
-          uses: actions/checkout@v4
-          with:
-            ref: develop  # Ensures develop branch is checked out
-        
-        - name: Restore Dependencies
-          run: dotnet restore
-        
-        - name: Cache SonarCloud Packages
-          uses: actions/cache@v4
-          with:
-            path: ~\sonar\cache
-            key: ${{ runner.os }}-sonar
-            restore-keys: ${{ runner.os }}-sonar
-        
-        - name: Cache SonarCloud Scanner
-          id: cache-sonar-scanner
-          uses: actions/cache@v4
-          with:
-            path: .\.sonar\scanner
-            key: ${{ runner.os }}-sonar-scanner
-            restore-keys: ${{ runner.os }}-sonar-scanner
-        
-        - name: Install SonarCloud Scanner
-          if: steps.cache-sonar-scanner.outputs.cache-hit != 'true'
-          shell: powershell
-          run: |
-              New-Item -Path .\.sonar\scanner -ItemType Directory -Force
-              dotnet tool update dotnet-sonarscanner --tool-path .\.sonar\scanner
-        
-        - name: Run SonarCloud Analysis
-          env:
-              SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
-          shell: powershell
-          run: |
-                  .\.sonar\scanner\dotnet-sonarscanner begin /k:"SurajMishraNagarro_AspNetMVCCalculator" /o:"surajmishranagarro" /d:sonar.token="${{ secrets.SONAR_TOKEN }}" /d:sonar.host.url="https://sonarcloud.io" /d:sonar.branch.name="develop"
-                  dotnet build --configuration Release --no-restore
-                  .\.sonar\scanner\dotnet-sonarscanner end /d:sonar.token="${{ secrets.SONAR_TOKEN }}"
-        
-        - name: Ensure First Analysis on Default Branch (If Needed)
-          if: github.ref == 'refs/heads/main'
-          env:
-              SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
-          shell: pwsh
-          run: |
-                  .\.sonar\scanner\dotnet-sonarscanner begin /k:"SurajMishraNagarro_AspNetMVCCalculator" /o:"surajmishranagarro" /d:sonar.token="${{ secrets.SONAR_TOKEN }}" /d:sonar.host.url="https://sonarcloud.io"
-                  dotnet build --configuration Release --no-restore
-                  .\.sonar\scanner\dotnet-sonarscanner end /d:sonar.token="${{ secrets.SONAR_TOKEN }}"
-        
+    name: SonarCloud Analysis
+    runs-on: self-hosted
+    steps:
+    - name: Checkout Repository
+      uses: actions/checkout@v4
+      with:
+        ref: main  # Check out the main branch
+
+    - name: Restore Dependencies
+      run: dotnet restore
+
+    - name: Cache SonarCloud Packages
+      uses: actions/cache@v4
+      with:
+        path: ~\sonar\cache
+        key: ${{ runner.os }}-sonar
+        restore-keys: ${{ runner.os }}-sonar
+
+    - name: Cache SonarCloud Scanner
+      id: cache-sonar-scanner
+      uses: actions/cache@v4
+      with:
+        path: .\.sonar\scanner
+        key: ${{ runner.os }}-sonar-scanner
+        restore-keys: ${{ runner.os }}-sonar-scanner
+
+    - name: Install SonarCloud Scanner
+      if: steps.cache-sonar-scanner.outputs.cache-hit != 'true'
+      shell: powershell
+      run: |
+        New-Item -Path .\.sonar\scanner -ItemType Directory -Force
+        dotnet tool update dotnet-sonarscanner --tool-path .\.sonar\scanner
+
+    - name: Run SonarCloud Analysis
+      env:
+        SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
+      shell: powershell
+      run: |
+        .\.sonar\scanner\dotnet-sonarscanner begin /k:"SurajMishraNagarro_AspNetMVCCalculator" /o:"surajmishranagarro" /d:sonar.token="${{ secrets.SONAR_TOKEN }}" /d:sonar.host.url="https://sonarcloud.io"
+        dotnet build --configuration Release --no-restore
+        .\.sonar\scanner\dotnet-sonarscanner end /d:sonar.token="${{ secrets.SONAR_TOKEN }}"
+
+
   # test-coverage:
   #   name: Test & Code Coverage
   #   needs: build
