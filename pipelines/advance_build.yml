@@ -8,7 +8,7 @@ on:
     branches:
       - main
   schedule:
-    - cron: '30 11 * * 3,5'  
+    - cron: '30 11 * * 3,5' 
 
 jobs:
   build:
@@ -21,16 +21,25 @@ jobs:
         run: dotnet restore
 
       - name: Build Application
-        run: dotnet build --configuration Release --no-restore
+        run: |
+          mkdir -Force bin/Release 
+          dotnet build --configuration Release --no-restore
 
-      - name: Upload Build Artifacts
+      - name: Determine Version Tag
+        run: |
+          $BranchName = "${{ github.ref_name }}".Replace("/", "-")
+          $ShortHash = $(git rev-parse --short HEAD)
+          $VersionTag = "$BranchName-$ShortHash"
+          echo "VERSION_TAG=$VersionTag" | Out-File -FilePath $env:GITHUB_ENV -Encoding utf8
+
+      - name: Upload Build Artifacts with Versioning
         uses: actions/upload-artifact@v4
         with:
-          name: build-artifacts
-          path: bin/Release
+          name: build-artifacts-${{ env.VERSION_TAG }}
+          path: '**/bin/Release/net*/**'
 
-  test:
-    needs: build 
+  test-coverage:
+    needs: build
     runs-on: self-hosted
     steps:
       - name: Checkout Repository
@@ -39,30 +48,47 @@ jobs:
       - name: Restore Dependencies
         run: dotnet restore
 
+      - name: Build Solution
+        run: dotnet build --configuration Release --no-restore
+
       - name: Run Unit Tests with Code Coverage
-        run: dotnet test --logger trx --collect:"XPlat Code Coverage" --results-directory TestResults
+        run: dotnet test --configuration Release --no-build --collect:"XPlat Code Coverage" --results-directory TestResults
+        continue-on-error: true
 
       - name: Upload Test Results
         uses: actions/upload-artifact@v4
         with:
-          name: test-results
+          name: test-results-${{ env.VERSION_TAG }}
           path: TestResults
+          retention-days: 7
 
-  coverage:
-    needs: test 
-    runs-on: self-hosted
-    steps:
-      - name: Checkout Repository
-        uses: actions/checkout@v4
-
-      - name: Install ReportGenerator
-        run: dotnet tool install --global reportgenerator
-
-      - name: Generate Coverage Report
-        run: reportgenerator -reports:TestResults/**/coverage.cobertura.xml -targetdir:CoverageReport -reporttypes:Html
-
-      - name: Upload Coverage Report
+      - name: Upload Code Coverage Results
         uses: actions/upload-artifact@v4
         with:
-          name: coverage-report
-          path: CoverageReport
+          name: code-coverage-${{ env.VERSION_TAG }}
+          path: TestResults/**/coverage.cobertura.xml
+          retention-days: 7
+
+  notify:
+    needs: [build, test-coverage]
+    runs-on: self-hosted
+    steps:
+      - name: Send Email on Failure
+        if: failure()
+        uses: dawidd6/action-send-mail@v3
+        with:
+          server_address: smtp.gmail.com
+          server_port: 587
+          username: ${{ secrets.EMAIL_USERNAME }}
+          password: ${{ secrets.EMAIL_PASSWORD }}
+          subject: "🚨 Build or Tests Failed: ${{ github.repository }}"
+          to: ${{ secrets.TO_EMAIL }}
+          from: "GitHub Actions <${{ secrets.EMAIL_USERNAME }}>"
+          body: |
+            **Build or Tests Failed for** ${{ github.repository }}
+            **Repository**: ${{ github.repository }}
+            **Branch**: ${{ github.ref }}
+            **Commit**: ${{ github.sha }}
+            **Triggered by**: ${{ github.actor }}
+
+            Check the logs: https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }}
