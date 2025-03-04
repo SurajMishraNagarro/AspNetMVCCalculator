@@ -64,7 +64,7 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: code-coverage-${{ env.VERSION_TAG }}
-          path: TestResults/CoverageReports/coverage.cobertura.xml
+          path: TestResults/**/coverage.cobertura.xml
           retention-days: 7
   
   sonar:
@@ -82,7 +82,7 @@ jobs:
           uses: actions/download-artifact@v4
           with:
             name: code-coverage-${{ env.VERSION_TAG }}
-            path: TestResults/CoverageReports
+            path: TestResults
         
         - name: Cache SonarCloud Packages
           uses: actions/cache@v4
@@ -111,7 +111,7 @@ jobs:
             SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
           shell: powershell
           run: |
-                .\.sonar\scanner\dotnet-sonarscanner begin /k:"SurajMishraNagarro_AspNetMVCCalculator" /o:"surajmishranagarro" /d:sonar.token="${{ secrets.SONAR_TOKEN }}" /d:sonar.host.url="https://sonarcloud.io" /d:sonar.coverageReportPaths="TestResults/CoverageReports/coverage.cobertura.xml"
+                .\.sonar\scanner\dotnet-sonarscanner begin /k:"SurajMishraNagarro_AspNetMVCCalculator" /o:"surajmishranagarro" /d:sonar.token="${{ secrets.SONAR_TOKEN }}" /d:sonar.host.url="https://sonarcloud.io" /d:sonar.coverageReportPaths="TestResults/**/coverage.cobertura.xml"
                 dotnet build --configuration Release --no-restore
                 .\.sonar\scanner\dotnet-sonarscanner end /d:sonar.token="${{ secrets.SONAR_TOKEN }}"
         
