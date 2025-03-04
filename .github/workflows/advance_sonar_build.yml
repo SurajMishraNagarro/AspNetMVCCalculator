@@ -77,7 +77,7 @@ jobs:
         - name: Run SonarCloud Analysis
           env:
               SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
-          shell: pwsh
+          shell: powershell
           run: |
                   .\.sonar\scanner\dotnet-sonarscanner begin /k:"SurajMishraNagarro_AspNetMVCCalculator" /o:"surajmishranagarro" /d:sonar.token="${{ secrets.SONAR_TOKEN }}" /d:sonar.host.url="https://sonarcloud.io" /d:sonar.branch.name="develop"
                   dotnet build --configuration Release --no-restore
