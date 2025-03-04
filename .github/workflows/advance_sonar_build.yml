@@ -64,7 +64,7 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: code-coverage-${{ env.VERSION_TAG }}
-          path: TestResults/**/coverage.cobertura.xml
+          path: TestResults/CoverageReports/coverage.cobertura.xml
           retention-days: 7
   
   sonar:
@@ -111,7 +111,7 @@ jobs:
             SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
           shell: powershell
           run: |
-                .\.sonar\scanner\dotnet-sonarscanner begin /k:"SurajMishraNagarro_AspNetMVCCalculator" /o:"surajmishranagarro" /d:sonar.token="${{ secrets.SONAR_TOKEN }}" /d:sonar.host.url="https://sonarcloud.io" /d:sonar.coverageReportPaths="TestResults/**/coverage.cobertura.xml"
+                .\.sonar\scanner\dotnet-sonarscanner begin /k:"SurajMishraNagarro_AspNetMVCCalculator" /o:"surajmishranagarro" /d:sonar.token="${{ secrets.SONAR_TOKEN }}" /d:sonar.host.url="https://sonarcloud.io" /d:sonar.coverageReportPaths="TestResults/CoverageReports/coverage.cobertura.xml"
                 dotnet build --configuration Release --no-restore
                 .\.sonar\scanner\dotnet-sonarscanner end /d:sonar.token="${{ secrets.SONAR_TOKEN }}"
         
@@ -120,21 +120,21 @@ jobs:
     runs-on: self-hosted
     steps:
       - name: Send Email on Failure
-        if: success()
+        if: failure()
         uses: dawidd6/action-send-mail@v3
         with:
           server_address: smtp.gmail.com
           server_port: 587
           username: ${{ secrets.EMAIL_USERNAME }}
           password: ${{ secrets.EMAIL_PASSWORD }}
-          subject: " Build or Tests Succeded: ${{ github.repository }}"
+          subject: " Build or Tests Failed: ${{ github.repository }}"
           to: ${{ secrets.TO_EMAIL }}
           from: "GitHub Actions <${{ secrets.EMAIL_USERNAME }}>"
           body: |
-            **Build or Tests Failed for** ${{ github.repository }}
-            **Repository**: ${{ github.repository }}
-            **Branch**: ${{ github.ref }}
-            **Commit**: ${{ github.sha }}
-            **Triggered by**: ${{ github.actor }}
+            Build or Tests Failed for ${{ github.repository }}
+            Repository: ${{ github.repository }}
+            Branch: ${{ github.ref }}
+            Commit: ${{ github.sha }}
+            Triggered by: ${{ github.actor }}
 
             Check the logs: https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }}
