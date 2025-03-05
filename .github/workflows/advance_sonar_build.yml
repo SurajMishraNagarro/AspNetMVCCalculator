@@ -35,7 +35,7 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: build-artifacts--${{ steps.version.outputs.VERSION_TAG }}
-          path: '**/bin/Release/net*/**'
+          path: '**/bin/Release/net9.0/**'
 
   # test-coverage:
     
@@ -81,60 +81,60 @@ jobs:
   #       path: coverage
   #       retention-days: 7
 
-  sonar:
-    name: SonarCloud Analysis
-    needs: build
-    runs-on: self-hosted
-    steps:
-    - name: Checkout Repository
-      uses: actions/checkout@v4
+  # sonar:
+  #   name: SonarCloud Analysis
+  #   needs: build
+  #   runs-on: self-hosted
+  #   steps:
+  #   - name: Checkout Repository
+  #     uses: actions/checkout@v4
 
-    - name: Restore Dependencies
-      run: dotnet restore
+  #   - name: Restore Dependencies
+  #     run: dotnet restore
 
-    - name: Cache SonarCloud Packages
-      uses: actions/cache@v4
-      with:
-        path: ~\sonar\cache
-        key: ${{ runner.os }}-sonar
-        restore-keys: ${{ runner.os }}-sonar
+  #   - name: Cache SonarCloud Packages
+  #     uses: actions/cache@v4
+  #     with:
+  #       path: ~\sonar\cache
+  #       key: ${{ runner.os }}-sonar
+  #       restore-keys: ${{ runner.os }}-sonar
 
-    - name: Cache SonarCloud Scanner
-      id: cache-sonar-scanner
-      uses: actions/cache@v4
-      with:
-        path: .\.sonar\scanner
-        key: ${{ runner.os }}-sonar-scanner
-        restore-keys: ${{ runner.os }}-sonar-scanner
+  #   - name: Cache SonarCloud Scanner
+  #     id: cache-sonar-scanner
+  #     uses: actions/cache@v4
+  #     with:
+  #       path: .\.sonar\scanner
+  #       key: ${{ runner.os }}-sonar-scanner
+  #       restore-keys: ${{ runner.os }}-sonar-scanner
 
-    - name: Install SonarCloud Scanner
-      if: steps.cache-sonar-scanner.outputs.cache-hit != 'true'
-      shell: powershell
-      run: |
-        New-Item -Path .\.sonar\scanner -ItemType Directory -Force
-        dotnet tool update dotnet-sonarscanner --tool-path .\.sonar\scanner
+  #   - name: Install SonarCloud Scanner
+  #     if: steps.cache-sonar-scanner.outputs.cache-hit != 'true'
+  #     shell: powershell
+  #     run: |
+  #       New-Item -Path .\.sonar\scanner -ItemType Directory -Force
+  #       dotnet tool update dotnet-sonarscanner --tool-path .\.sonar\scanner
 
-    - name: Begin SonarCloud Analysis
-      env:
-        SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
-      shell: powershell
-      run: |
-        .\.sonar\scanner\dotnet-sonarscanner begin /k:"SurajMishraNagarro_AspNetMVCCalculator" /o:"surajmishranagarro" /d:sonar.token="$env:SONAR_TOKEN" /d:sonar.cs.opencover.reportsPaths="coverage.xml"
+  #   - name: Begin SonarCloud Analysis
+  #     env:
+  #       SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
+  #     shell: powershell
+  #     run: |
+  #       .\.sonar\scanner\dotnet-sonarscanner begin /k:"SurajMishraNagarro_AspNetMVCCalculator" /o:"surajmishranagarro" /d:sonar.token="$env:SONAR_TOKEN" /d:sonar.cs.opencover.reportsPaths="coverage.xml"
 
-    - name: Build Solution
-      run: dotnet build --configuration Release --no-restore
+  #   - name: Build Solution
+  #     run: dotnet build --configuration Release --no-restore
 
-    - name: Run Tests with Coverlet
-      shell: powershell
-      run: |
-        coverlet .\CalculatorApp.Tests\bin\Release\net9.0\CalculatorApp.Tests.dll --target "dotnet" --targetargs "test --no-build" -f=opencover -o="coverage.xml"
+  #   - name: Run Tests with Coverlet
+  #     shell: powershell
+  #     run: |
+  #       coverlet .\CalculatorApp.Tests\bin\Release\net9.0\CalculatorApp.Tests.dll --target "dotnet" --targetargs "test --no-build" -f=opencover -o="coverage.xml"
 
-    - name: End SonarCloud Analysis
-      env:
-        SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
-      shell: powershell
-      run: |
-        .\.sonar\scanner\dotnet-sonarscanner end /d:sonar.token="$env:SONAR_TOKEN"
+  #   - name: End SonarCloud Analysis
+  #     env:
+  #       SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
+  #     shell: powershell
+  #     run: |
+  #       .\.sonar\scanner\dotnet-sonarscanner end /d:sonar.token="$env:SONAR_TOKEN"
 
 
   # notify:
