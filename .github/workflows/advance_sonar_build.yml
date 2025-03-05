@@ -112,17 +112,29 @@ jobs:
       run: dotnet restore
 
     - name: Build Solution
-      run: dotnet build --configuration Release --no-restore
+      run: dotnet build --no-incremental
 
     - name: Install SonarCloud Scanner
       shell: powershell
       run: |
         if (-not (dotnet tool list -g | Select-String "dotnet-sonarscanner")) {
-            dotnet tool install --global dotnet-sonarscanner
+          dotnet tool install --global dotnet-sonarscanner
         }
         else {
-            Write-Output "SonarScanner already installed"
+          Write-Output "SonarScanner already installed"
         }
+
+    - name: Install Coverlet Console
+      shell: powershell
+      run: |
+        if (-not (dotnet tool list -g | Select-String "coverlet.console")) {
+          dotnet tool install --global coverlet.console
+        }
+        else {
+          Write-Output "Coverlet Console already installed"
+        }
+        # Add the global tools folder to PATH for this session
+        $env:PATH = "$env:USERPROFILE\.dotnet\tools;" + $env:PATH
 
     - name: Begin SonarCloud Analysis
       env:
@@ -142,6 +154,7 @@ jobs:
       shell: powershell
       run: |
         dotnet sonarscanner end /d:sonar.token="${env:SONAR_TOKEN}"
+
 
 
 
