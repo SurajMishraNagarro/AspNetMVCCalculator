@@ -114,22 +114,35 @@ jobs:
     - name: Build Solution
       run: dotnet build --configuration Release --no-restore
 
+    - name: Install SonarCloud Scanner
+      shell: powershell
+      run: |
+        if (-not (dotnet tool list -g | Select-String "dotnet-sonarscanner")) {
+            dotnet tool install --global dotnet-sonarscanner
+        }
+        else {
+            Write-Output "SonarScanner already installed"
+        }
+
     - name: Begin SonarCloud Analysis
       env:
         SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
+      shell: powershell
       run: |
-        
-        dotnet tool install --global dotnet-sonarscanner || echo "SonarScanner already installed"
-        dotnet sonarscanner begin /k:"SurajMishraNagarro_AspNetMVCCalculator" /o:"surajmishranagarro" /d:sonar.token="${SONAR_TOKEN}" /d:sonar.cs.opencover.reportsPaths="coverage.xml"
+        dotnet sonarscanner begin /k:"SurajMishraNagarro_AspNetMVCCalculator" /o:"surajmishranagarro" /d:sonar.token="${env:SONAR_TOKEN}" /d:sonar.cs.opencover.reportsPaths="coverage.xml"
 
     - name: Run Tests with Coverage
+      shell: powershell
       run: |
         coverlet .\CalculatorApp.Tests\bin\Release\net9.0\CalculatorApp.Tests.dll --target "dotnet" --targetargs "test --no-build" -f=opencover -o "coverage.xml"
-      
+
     - name: End SonarCloud Analysis
       env:
         SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
-      run: dotnet sonarscanner end /d:sonar.token="${SONAR_TOKEN}"
+      shell: powershell
+      run: |
+        dotnet sonarscanner end /d:sonar.token="${env:SONAR_TOKEN}"
+
 
 
 
