@@ -9,36 +9,36 @@ on:
     - cron: '30 11 * * 3,5' 
 
 jobs:
-  build:
-    runs-on: self-hosted
-    steps:
-      - name: Checkout Repository
-        uses: actions/checkout@v4
+  # build:
+  #   runs-on: self-hosted
+  #   steps:
+  #     - name: Checkout Repository
+  #       uses: actions/checkout@v4
 
-      - name: Restore Dependencies
-        run: dotnet restore
+  #     - name: Restore Dependencies
+  #       run: dotnet restore
 
-      - name: Build Application
-        run: |
-          mkdir -Force bin/Release 
-          dotnet build --configuration Release --no-restore
+  #     - name: Build Application
+  #       run: |
+  #         mkdir -Force bin/Release 
+  #         dotnet build --configuration Release --no-restore
 
-      - name: Determine Version Tag
-        id: version
-        run: |
-            $BranchName = "${{ github.ref_name }}".Replace("/", "-")
-            $ShortHash = $(git rev-parse --short HEAD)
-            $VersionTag = "$BranchName-$ShortHash"
-            echo "::set-output name=VERSION_TAG::$VersionTag"
+  #     - name: Determine Version Tag
+  #       id: version
+  #       run: |
+  #           $BranchName = "${{ github.ref_name }}".Replace("/", "-")
+  #           $ShortHash = $(git rev-parse --short HEAD)
+  #           $VersionTag = "$BranchName-$ShortHash"
+  #           echo "::set-output name=VERSION_TAG::$VersionTag"
 
-      - name: Upload Build Artifacts with Versioning
-        uses: actions/upload-artifact@v4
-        with:
-          name: build-artifacts--${{ steps.version.outputs.VERSION_TAG }}
-          path: '**/bin/Release/net*/**'
+  #     - name: Upload Build Artifacts with Versioning
+  #       uses: actions/upload-artifact@v4
+  #       with:
+  #         name: build-artifacts--${{ steps.version.outputs.VERSION_TAG }}
+  #         path: '**/bin/Release/net*/**'
 
   test-coverage:
-    needs: build
+    
     runs-on: self-hosted
     steps:
     - name: Checkout Repository
@@ -83,7 +83,7 @@ jobs:
 
   sonar:
     name: SonarCloud Analysis
-    needs: [build, test-coverage]
+    needs: [test-coverage]
     runs-on: self-hosted
     steps:
     - name: Checkout Repository
@@ -97,6 +97,11 @@ jobs:
       with:
         name: code-coverage-${{ needs.build.outputs.VERSION_TAG }}
         path: coverage
+
+    - name: Adjust Coverage Report Version
+      shell: powershell
+      run: |
+          (Get-Content coverage/coverage.cobertura.xml) -replace 'version="1\.9"', 'version="1"' | Set-Content coverage/coverage.cobertura.xml
 
     - name: Cache SonarCloud Packages
       uses: actions/cache@v4
