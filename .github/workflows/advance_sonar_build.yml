@@ -9,81 +9,81 @@ on:
     - cron: '30 11 * * 3,5' 
 
 jobs:
-  # build:
-  #   runs-on: self-hosted
-  #   steps:
-  #     - name: Checkout Repository
-  #       uses: actions/checkout@v4
-
-  #     - name: Restore Dependencies
-  #       run: dotnet restore
-
-  #     - name: Build Application
-  #       run: |
-  #         mkdir -Force bin/Release 
-  #         dotnet build --configuration Release --no-restore
-
-  #     - name: Determine Version Tag
-  #       id: version
-  #       run: |
-  #           $BranchName = "${{ github.ref_name }}".Replace("/", "-")
-  #           $ShortHash = $(git rev-parse --short HEAD)
-  #           $VersionTag = "$BranchName-$ShortHash"
-  #           echo "::set-output name=VERSION_TAG::$VersionTag"
-
-  #     - name: Upload Build Artifacts with Versioning
-  #       uses: actions/upload-artifact@v4
-  #       with:
-  #         name: build-artifacts--${{ steps.version.outputs.VERSION_TAG }}
-  #         path: '**/bin/Release/net*/**'
-
-  test-coverage:
-    
+  build:
     runs-on: self-hosted
     steps:
-    - name: Checkout Repository
-      uses: actions/checkout@v4
+      - name: Checkout Repository
+        uses: actions/checkout@v4
 
-    - name: Restore Dependencies
-      run: dotnet restore
+      - name: Restore Dependencies
+        run: dotnet restore
 
-    - name: Build Solution
-      run: dotnet build --configuration Release --no-restore
+      - name: Build Application
+        run: |
+          mkdir -Force bin/Release 
+          dotnet build --configuration Release --no-restore
 
-    - name: Run Unit Tests with Code Coverage
-      run: dotnet test --configuration Release --no-build --collect:"XPlat Code Coverage" --results-directory TestResults
-      continue-on-error: true
+      - name: Determine Version Tag
+        id: version
+        run: |
+            $BranchName = "${{ github.ref_name }}".Replace("/", "-")
+            $ShortHash = $(git rev-parse --short HEAD)
+            $VersionTag = "$BranchName-$ShortHash"
+            echo "::set-output name=VERSION_TAG::$VersionTag"
 
-    - name: Prepare Coverage Report
-      shell: powershell
-      run: |
-        # Create a dedicated folder for the coverage file
-        New-Item -ItemType Directory -Force -Path coverage
-        # Locate the first instance of coverage.cobertura.xml in TestResults and copy it to the coverage folder
-        $coverageFile = Get-ChildItem -Path TestResults -Recurse -Filter coverage.cobertura.xml | Select-Object -First 1
-        if ($coverageFile) {
-          Copy-Item $coverageFile.FullName -Destination coverage\coverage.cobertura.xml
-        } else {
-          Write-Error "Coverage file not found!"
-        }
+      - name: Upload Build Artifacts with Versioning
+        uses: actions/upload-artifact@v4
+        with:
+          name: build-artifacts--${{ steps.version.outputs.VERSION_TAG }}
+          path: '**/bin/Release/net*/**'
 
-    - name: Upload Test Results
-      uses: actions/upload-artifact@v4
-      with:
-        name: test-results-${{ needs.build.outputs.VERSION_TAG }}
-        path: TestResults
-        retention-days: 7
+  # test-coverage:
+    
+  #   runs-on: self-hosted
+  #   steps:
+  #   - name: Checkout Repository
+  #     uses: actions/checkout@v4
 
-    - name: Upload Code Coverage Results
-      uses: actions/upload-artifact@v4
-      with:
-        name: code-coverage-${{ needs.build.outputs.VERSION_TAG }}
-        path: coverage
-        retention-days: 7
+  #   - name: Restore Dependencies
+  #     run: dotnet restore
+
+  #   - name: Build Solution
+  #     run: dotnet build --configuration Release --no-restore
+
+  #   - name: Run Unit Tests with Code Coverage
+  #     run: dotnet test --configuration Release --no-build --collect:"XPlat Code Coverage" --results-directory TestResults
+  #     continue-on-error: true
+
+  #   - name: Prepare Coverage Report
+  #     shell: powershell
+  #     run: |
+  #       # Create a dedicated folder for the coverage file
+  #       New-Item -ItemType Directory -Force -Path coverage
+  #       # Locate the first instance of coverage.cobertura.xml in TestResults and copy it to the coverage folder
+  #       $coverageFile = Get-ChildItem -Path TestResults -Recurse -Filter coverage.cobertura.xml | Select-Object -First 1
+  #       if ($coverageFile) {
+  #         Copy-Item $coverageFile.FullName -Destination coverage\coverage.cobertura.xml
+  #       } else {
+  #         Write-Error "Coverage file not found!"
+  #       }
+
+  #   - name: Upload Test Results
+  #     uses: actions/upload-artifact@v4
+  #     with:
+  #       name: test-results-${{ needs.build.outputs.VERSION_TAG }}
+  #       path: TestResults
+  #       retention-days: 7
+
+  #   - name: Upload Code Coverage Results
+  #     uses: actions/upload-artifact@v4
+  #     with:
+  #       name: code-coverage-${{ needs.build.outputs.VERSION_TAG }}
+  #       path: coverage
+  #       retention-days: 7
 
   sonar:
     name: SonarCloud Analysis
-    needs: [test-coverage]
+    needs: build
     runs-on: self-hosted
     steps:
     - name: Checkout Repository
@@ -91,17 +91,6 @@ jobs:
 
     - name: Restore Dependencies
       run: dotnet restore
-
-    - name: Download Coverage Report
-      uses: actions/download-artifact@v4
-      with:
-        name: code-coverage-${{ needs.build.outputs.VERSION_TAG }}
-        path: coverage
-
-    - name: Adjust Coverage Report Version
-      shell: powershell
-      run: |
-          (Get-Content coverage/coverage.cobertura.xml) -replace 'version="1\.9"', 'version="1"' | Set-Content coverage/coverage.cobertura.xml
 
     - name: Cache SonarCloud Packages
       uses: actions/cache@v4
@@ -125,14 +114,28 @@ jobs:
         New-Item -Path .\.sonar\scanner -ItemType Directory -Force
         dotnet tool update dotnet-sonarscanner --tool-path .\.sonar\scanner
 
-    - name: Run SonarCloud Analysis
+    - name: Begin SonarCloud Analysis
       env:
         SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
       shell: powershell
       run: |
-        .\.sonar\scanner\dotnet-sonarscanner begin /k:"SurajMishraNagarro_AspNetMVCCalculator" /o:"surajmishranagarro" /d:sonar.token="${{ secrets.SONAR_TOKEN }}" /d:sonar.host.url="https://sonarcloud.io" /d:sonar.coverageReportPaths="coverage/coverage.cobertura.xml"
-        dotnet build --configuration Release --no-restore
-        .\.sonar\scanner\dotnet-sonarscanner end /d:sonar.token="${{ secrets.SONAR_TOKEN }}"
+        .\.sonar\scanner\dotnet-sonarscanner begin /k:"SurajMishraNagarro_AspNetMVCCalculator" /o:"surajmishranagarro" /d:sonar.token="$env:SONAR_TOKEN" /d:sonar.cs.opencover.reportsPaths="coverage.xml"
+
+    - name: Build Solution
+      run: dotnet build --configuration Release --no-restore
+
+    - name: Run Tests with Coverlet
+      shell: powershell
+      run: |
+        coverlet .\CalculatorApp.Tests\bin\Release\net9.0\CalculatorApp.Tests.dll --target "dotnet" --targetargs "test --no-build" -f=opencover -o="coverage.xml"
+
+    - name: End SonarCloud Analysis
+      env:
+        SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
+      shell: powershell
+      run: |
+        .\.sonar\scanner\dotnet-sonarscanner end /d:sonar.token="$env:SONAR_TOKEN"
+
 
   # notify:
   #   needs: [build,sonar, test-coverage]
