@@ -81,6 +81,32 @@ jobs:
   #       path: coverage
   #       retention-days: 7
 
+
+  test:
+    needs: build
+    runs-on: self-hosted
+    steps:
+    - name: Checkout Repository
+      uses: actions/checkout@v4
+
+    - name: Download Build Artifacts
+      uses: actions/download-artifact@v4
+      with:
+        name: build-artifacts-${{ needs.build.outputs.VERSION_TAG }}
+        path: build-output
+
+    - name: Run Unit Tests
+      run: dotnet test --configuration Release --no-build --results-directory TestResults
+      continue-on-error: true
+
+    - name: Upload Test Results
+      uses: actions/upload-artifact@v4
+      with:
+        name: test-results-${{ needs.build.outputs.VERSION_TAG }}
+        path: TestResults
+        retention-days: 7
+
+
   # sonar:
   #   name: SonarCloud Analysis
   #   needs: build
