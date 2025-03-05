@@ -99,19 +99,20 @@ jobs:
         path: build-output
 
     - name: Run Unit Tests
-      run: | 
-        mkdir TestResults 
-        dotnet test --configuration Release --no-build --logger "trx;LogFileName=TestResults/results.trx" --results-directory TestResults
+      run: |
+          mkdir TestResults
+          dotnet test --configuration Release --no-build --logger "trx;LogFileName=results.trx" --results-directory TestResults
       continue-on-error: true
       
+    - name: List TestResults Directory
+      run: dir TestResults /s
       
-
     - name: Upload Test Results
       uses: actions/upload-artifact@v4
       with:
-        name: test-results-${{ needs.build.outputs.VERSION_TAG }}
-        path: TestResults
-        retention-days: 7
+          name: test-results-${{ needs.build.outputs.VERSION_TAG }}
+          path: TestResults
+          retention-days: 7
 
 
   # sonar:
