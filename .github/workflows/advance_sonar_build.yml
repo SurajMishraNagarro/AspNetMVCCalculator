@@ -101,7 +101,7 @@ jobs:
 
 
   sonar:
-    name: SonarCloud Analysis
+    name: SonarCloud Analysis with dotnet-coverage
     needs: build
     runs-on: self-hosted
     steps:
@@ -118,20 +118,20 @@ jobs:
       shell: powershell
       run: |
         if (-not (dotnet tool list -g | Select-String "dotnet-sonarscanner")) {
-          dotnet tool install --global dotnet-sonarscanner
+            dotnet tool install --global dotnet-sonarscanner
         }
         else {
-          Write-Output "SonarScanner already installed"
+            Write-Output "SonarScanner already installed"
         }
 
-    - name: Install Coverlet Console
+    - name: Install dotnet-coverage
       shell: powershell
       run: |
-        if (-not (dotnet tool list -g | Select-String "coverlet.console")) {
-          dotnet tool install --global coverlet.console
+        if (-not (dotnet tool list -g | Select-String "dotnet-coverage")) {
+            dotnet tool install --global dotnet-coverage
         }
         else {
-          Write-Output "Coverlet Console already installed"
+            Write-Output "dotnet-coverage already installed"
         }
         # Add the global tools folder to PATH for this session
         $env:PATH = "$env:USERPROFILE\.dotnet\tools;" + $env:PATH
@@ -141,12 +141,12 @@ jobs:
         SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
       shell: powershell
       run: |
-        dotnet sonarscanner begin /k:"SurajMishraNagarro_AspNetMVCCalculator" /o:"surajmishranagarro" /d:sonar.token="${env:SONAR_TOKEN}" /d:sonar.cs.opencover.reportsPaths="coverage.xml"
+        dotnet sonarscanner begin /k:"SurajMishraNagarro_AspNetMVCCalculator" /o:"surajmishranagarro" /d:sonar.token="${env:SONAR_TOKEN}" /d:sonar.cs.vscoveragexml.reportsPaths="coverage.xml"
 
-    - name: Run Tests with Coverage
+    - name: Run Tests with dotnet-coverage
       shell: powershell
       run: |
-        coverlet "C:\actions-runner\_work\AspNetMVCCalculator\AspNetMVCCalculator\CalculatorApp.Tests\bin\Release\net9.0\CalculatorApp.Tests.dll" --target "dotnet" --targetargs "test --no-build" -f=opencover -o "coverage.xml"
+        dotnet-coverage collect "dotnet test" -f xml -o "coverage.xml"
 
     - name: End SonarCloud Analysis
       env:
@@ -154,6 +154,7 @@ jobs:
       shell: powershell
       run: |
         dotnet sonarscanner end /d:sonar.token="${env:SONAR_TOKEN}"
+
 
 
 
