@@ -29,7 +29,7 @@ jobs:
             $BranchName = "${{ github.ref_name }}".Replace("/", "-")
             $ShortHash = $(git rev-parse --short HEAD)
             $VersionTag = "$BranchName-$ShortHash"
-            echo "::set-output name=VERSION_TAG::$VersionTag"
+            "VERSION_TAG=$VersionTag" | Out-File -FilePath $env:GITHUB_OUTPUT -Append -Encoding utf8
 
       - name: Upload Build Artifacts with Versioning
         uses: actions/upload-artifact@v4
