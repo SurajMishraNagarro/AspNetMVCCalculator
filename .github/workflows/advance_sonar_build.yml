@@ -11,6 +11,8 @@ on:
 jobs:
   build:
     runs-on: self-hosted
+    outputs:
+      VERSION_TAG: ${{ steps.version.outputs.VERSION_TAG }}
     steps:
       - name: Checkout Repository
         uses: actions/checkout@v4
@@ -85,6 +87,7 @@ jobs:
   test:
     needs: build
     runs-on: self-hosted
+    
     steps:
     - name: Checkout Repository
       uses: actions/checkout@v4
