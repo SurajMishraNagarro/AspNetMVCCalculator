@@ -95,7 +95,7 @@ jobs:
     - name: Download Build Artifacts
       uses: actions/download-artifact@v4
       with:
-        name: build-artifacts-${{ needs.build.outputs.VERSION_TAG }}
+        name: build-artifacts--${{ needs.build.outputs.VERSION_TAG }}
         path: build-output
 
     - name: Run Unit Tests
