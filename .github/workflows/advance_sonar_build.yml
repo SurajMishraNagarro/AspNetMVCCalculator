@@ -99,7 +99,9 @@ jobs:
         path: build-output
 
     - name: Run Unit Tests
-      run: mkdir TestResults && dotnet test --configuration Release --no-build --logger "trx;LogFileName=TestResults/results.trx" --results-directory TestResults
+      run: | 
+        mkdir TestResults 
+        dotnet test --configuration Release --no-build --logger "trx;LogFileName=TestResults/results.trx" --results-directory TestResults
       continue-on-error: true
       
       
