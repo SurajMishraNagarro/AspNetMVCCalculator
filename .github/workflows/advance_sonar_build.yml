@@ -98,11 +98,13 @@ jobs:
         name: build-artifacts--${{ needs.build.outputs.VERSION_TAG }}
         path: build-output
 
+    - name: Create TestResults Folder
+      run: mkdir TestResults
+      
     - name: Run Unit Tests
-      run: |
-          mkdir TestResults
-          dotnet test --configuration Release --no-build --logger "trx;LogFileName=results.trx" --results-directory TestResults
+      run: dotnet test --configuration Release --no-build --logger "trx;LogFileName=results.trx" --results-directory TestResults
       continue-on-error: true
+      
       
     - name: List TestResults Directory
       run: ls TestResults
