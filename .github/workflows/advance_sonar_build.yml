@@ -160,26 +160,26 @@ jobs:
 
 
 
-  # notify:
-  #   needs: [build,sonar, test-coverage]
-  #   runs-on: self-hosted
-  #   steps:
-  #     - name: Send Email on Failure
-  #       if: failure()
-  #       uses: dawidd6/action-send-mail@v3
-  #       with:
-  #         server_address: smtp.gmail.com
-  #         server_port: 587
-  #         username: ${{ secrets.EMAIL_USERNAME }}
-  #         password: ${{ secrets.EMAIL_PASSWORD }}
-  #         subject: " Build or Tests Failed: ${{ github.repository }}"
-  #         to: ${{ secrets.TO_EMAIL }}
-  #         from: "GitHub Actions <${{ secrets.EMAIL_USERNAME }}>"
-  #         body: |
-  #           Build or Tests Failed for ${{ github.repository }}
-  #           Repository: ${{ github.repository }}
-  #           Branch: ${{ github.ref }}
-  #           Commit: ${{ github.sha }}
-  #           Triggered by: ${{ github.actor }}
+  notify:
+    needs: [build,sonar, test, code-coverage]
+    runs-on: self-hosted
+    steps:
+      - name: Send Email on Failure
+        if: failure()
+        uses: dawidd6/action-send-mail@v3
+        with:
+          server_address: smtp.gmail.com
+          server_port: 587
+          username: ${{ secrets.EMAIL_USERNAME }}
+          password: ${{ secrets.EMAIL_PASSWORD }}
+          subject: " Build or Tests Failed: ${{ github.repository }}"
+          to: ${{ secrets.TO_EMAIL }}
+          from: "GitHub Actions <${{ secrets.EMAIL_USERNAME }}>"
+          body: |
+            Build or Tests Failed for ${{ github.repository }}
+            Repository: ${{ github.repository }}
+            Branch: ${{ github.ref }}
+            Commit: ${{ github.sha }}
+            Triggered by: ${{ github.actor }}
 
-  #           Check the logs: https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }}
+            Check the logs: https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }}
