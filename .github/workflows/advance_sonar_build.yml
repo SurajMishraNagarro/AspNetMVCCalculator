@@ -146,7 +146,7 @@ jobs:
     - name: Run Tests with Coverage
       shell: powershell
       run: |
-        coverlet .\CalculatorApp.Tests\bin\Release\net9.0\CalculatorApp.Tests.dll --target "dotnet" --targetargs "test --no-build" -f=opencover -o "coverage.xml"
+        coverlet "C:\actions-runner\_work\AspNetMVCCalculator\AspNetMVCCalculator\CalculatorApp.Tests\bin\Release\net9.0\CalculatorApp.Tests.dll" --target "dotnet" --targetargs "test --no-build" -f=opencover -o "coverage.xml"
 
     - name: End SonarCloud Analysis
       env:
