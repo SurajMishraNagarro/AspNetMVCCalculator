@@ -24,16 +24,17 @@ jobs:
           dotnet build --configuration Release --no-restore
 
       - name: Determine Version Tag
+        id: version
         run: |
-          $BranchName = "${{ github.ref_name }}".Replace("/", "-")
-          $ShortHash = $(git rev-parse --short HEAD)
-          $VersionTag = "$BranchName-$ShortHash"
-          echo "VERSION_TAG=$VersionTag" | Out-File -FilePath $env:GITHUB_ENV -Encoding utf8
+            $BranchName = "${{ github.ref_name }}".Replace("/", "-")
+            $ShortHash = $(git rev-parse --short HEAD)
+            $VersionTag = "$BranchName-$ShortHash"
+            echo "::set-output name=VERSION_TAG::$VersionTag"
 
       - name: Upload Build Artifacts with Versioning
         uses: actions/upload-artifact@v4
         with:
-          name: build-artifacts-${{ env.VERSION_TAG }}
+          name: build-artifacts--${{ steps.version.outputs.VERSION_TAG }}
           path: '**/bin/Release/net*/**'
 
   test-coverage:
@@ -56,14 +57,14 @@ jobs:
       - name: Upload Test Results
         uses: actions/upload-artifact@v4
         with:
-          name: test-results-${{ env.VERSION_TAG }}
+          name: test-results-${{ needs.build.outputs.VERSION_TAG }}
           path: TestResults
           retention-days: 7
 
       - name: Upload Code Coverage Results
         uses: actions/upload-artifact@v4
         with:
-          name: code-coverage-${{ env.VERSION_TAG }}
+          name: code-coverage-${{ needs.build.outputs.VERSION_TAG }}
           path: TestResults/**/coverage.cobertura.xml
           retention-days: 7
   
@@ -81,8 +82,8 @@ jobs:
         - name: Download Coverage Report
           uses: actions/download-artifact@v4
           with:
-            name: code-coverage-${{ env.VERSION_TAG }}
-            path: TestResults
+            name: code-coverage-${{ needs.build.outputs.VERSION_TAG }}
+            path: coverage
         
         - name: Cache SonarCloud Packages
           uses: actions/cache@v4
@@ -111,30 +112,30 @@ jobs:
             SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
           shell: powershell
           run: |
-                .\.sonar\scanner\dotnet-sonarscanner begin /k:"SurajMishraNagarro_AspNetMVCCalculator" /o:"surajmishranagarro" /d:sonar.token="${{ secrets.SONAR_TOKEN }}" /d:sonar.host.url="https://sonarcloud.io" /d:sonar.coverageReportPaths="TestResults/**/coverage.cobertura.xml"
+                .\.sonar\scanner\dotnet-sonarscanner begin /k:"SurajMishraNagarro_AspNetMVCCalculator" /o:"surajmishranagarro" /d:sonar.token="${{ secrets.SONAR_TOKEN }}" /d:sonar.host.url="https://sonarcloud.io" /d:sonar.coverageReportPaths="coverage/coverage.cobertura.xml"
                 dotnet build --configuration Release --no-restore
                 .\.sonar\scanner\dotnet-sonarscanner end /d:sonar.token="${{ secrets.SONAR_TOKEN }}"
         
-  notify:
-    needs: [build,sonar, test-coverage]
-    runs-on: self-hosted
-    steps:
-      - name: Send Email on Failure
-        if: failure()
-        uses: dawidd6/action-send-mail@v3
-        with:
-          server_address: smtp.gmail.com
-          server_port: 587
-          username: ${{ secrets.EMAIL_USERNAME }}
-          password: ${{ secrets.EMAIL_PASSWORD }}
-          subject: " Build or Tests Failed: ${{ github.repository }}"
-          to: ${{ secrets.TO_EMAIL }}
-          from: "GitHub Actions <${{ secrets.EMAIL_USERNAME }}>"
-          body: |
-            Build or Tests Failed for ${{ github.repository }}
-            Repository: ${{ github.repository }}
-            Branch: ${{ github.ref }}
-            Commit: ${{ github.sha }}
-            Triggered by: ${{ github.actor }}
+  # notify:
+  #   needs: [build,sonar, test-coverage]
+  #   runs-on: self-hosted
+  #   steps:
+  #     - name: Send Email on Failure
+  #       if: failure()
+  #       uses: dawidd6/action-send-mail@v3
+  #       with:
+  #         server_address: smtp.gmail.com
+  #         server_port: 587
+  #         username: ${{ secrets.EMAIL_USERNAME }}
+  #         password: ${{ secrets.EMAIL_PASSWORD }}
+  #         subject: " Build or Tests Failed: ${{ github.repository }}"
+  #         to: ${{ secrets.TO_EMAIL }}
+  #         from: "GitHub Actions <${{ secrets.EMAIL_USERNAME }}>"
+  #         body: |
+  #           Build or Tests Failed for ${{ github.repository }}
+  #           Repository: ${{ github.repository }}
+  #           Branch: ${{ github.ref }}
+  #           Commit: ${{ github.sha }}
+  #           Triggered by: ${{ github.actor }}
 
-            Check the logs: https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }}
+  #           Check the logs: https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }}
