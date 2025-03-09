@@ -56,7 +56,7 @@ jobs:
             $artifactPath = "publish\build-artifact.zip"
             $targetFilePath = "builds/build-artifact.zip"  # Define where you want it in Artifactory
             Write-Output "Uploading artifact from: $artifactPath to: $targetFilePath"
-            curl.exe -u "suraj.mishra@nagarro.com:your_encoded_password" -T "publish\build-artifact.zip" "https://your-artifactory-instance/artifactory/builds/build-artifact.zip"
+            curl.exe -u "suraj.mishra@nagarro.com:${{ secrets.ARTIFACTORY_API_KEY }}" -T $artifactPath "https://trialmfnpst.jfrog.io/artifactory/aspnetmvccalc-generic-local/$targetFilePath"
             Write-Output "Artifact uploaded successfully to Artifactory at $targetFilePath"
   
      
