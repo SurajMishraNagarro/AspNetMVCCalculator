@@ -1,0 +1,204 @@
+name: Advanced Build and Test ASP.NET Core App
+
+on:
+  push:
+    branches:
+      - main
+  
+  schedule:
+    - cron: '30 11 * * 3,5' 
+
+jobs:
+  build:
+    runs-on: self-hosted
+    outputs:
+      VERSION_TAG: ${{ steps.version.outputs.VERSION_TAG }}
+    steps:
+      - name: Checkout Repository
+        uses: actions/checkout@v4
+
+      - name: Restore Dependencies
+        run: dotnet restore
+
+      - name: Build Application
+        run: |
+          mkdir -Force bin/Release 
+          dotnet build --configuration Release --no-restore
+
+      - name: Determine Version Tag
+        id: version
+        run: |
+            $BranchName = "${{ github.ref_name }}".Replace("/", "-")
+            $ShortHash = $(git rev-parse --short HEAD)
+            $VersionTag = "$BranchName-$ShortHash"
+            "VERSION_TAG=$VersionTag" | Out-File -FilePath $env:GITHUB_OUTPUT -Append -Encoding utf8
+
+      - name: Publish Build Artifact
+        run: dotnet publish --configuration Release --output ./publish
+      
+      
+      - name: Upload Build Artifacts with Versioning
+        uses: actions/upload-artifact@v4
+        with:
+          name: build-artifacts--${{ steps.version.outputs.VERSION_TAG }}
+          path: '**/bin/Release/net9.0/**'
+
+      - name: Setup JFrog CLI
+        uses: jfrog/setup-jfrog-cli@v2
+        with:
+            version: '2.9.1'
+  
+      - name: Configure JFrog CLI
+        shell: powershell
+        run: |
+            jfrog rt config --url="${{ secrets.ARTIFACTORY_URL }}" --apikey="${{ secrets.ARTIFACTORY_API_KEY }}" --interactive=false
+  
+      - name: Upload Artifacts to Artifactory
+        shell: powershell
+        run: |
+            jfrog rt upload "publish/**" "aspnetmvccalc-generic-local/"
+
+
+  test:
+    needs: build
+    runs-on: self-hosted
+    
+    steps:
+    - name: Checkout Repository
+      uses: actions/checkout@v4
+
+
+    - name: Create TestResults Folder
+      run: mkdir TestResults
+      
+    - name: Run Unit Tests
+      run: dotnet test --configuration Release --logger "trx;LogFileName=results.trx" --results-directory TestResults
+      continue-on-error: true
+
+      
+    - name: Upload Test Results
+      uses: actions/upload-artifact@v4
+      with:
+          name: test-results--${{ needs.build.outputs.VERSION_TAG }}
+          path: TestResults
+          retention-days: 7
+  
+  code-coverage:
+    needs: [build, test]
+    runs-on: self-hosted
+    steps:
+    - name: Checkout Repository
+      uses: actions/checkout@v4
+
+    - name: Restore Dependencies
+      run: dotnet restore
+
+    - name: Build Solution
+      run: dotnet build --configuration Release --no-restore
+
+    - name: Run Unit Tests with Code Coverage
+      run: dotnet test --configuration Release --no-build --collect:"XPlat Code Coverage" --results-directory TestResults
+      continue-on-error: true
+
+    - name: Prepare Coverage Report
+      shell: powershell
+      run: |
+        New-Item -ItemType Directory -Force -Path coverage
+        $coverageFile = Get-ChildItem -Path TestResults -Recurse -Filter coverage.cobertura.xml | Select-Object -First 1
+        if ($coverageFile) {
+          Copy-Item $coverageFile.FullName -Destination coverage\coverage.cobertura.xml
+        } else {
+          Write-Error "Coverage file not found!"
+        }
+
+    - name: Upload Code Coverage Artifact
+      uses: actions/upload-artifact@v4
+      with:
+        name: code-coverage--${{ needs.build.outputs.VERSION_TAG }}
+        path: coverage
+        retention-days: 7
+
+
+  sonar:
+    name: SonarCloud Analysis with dotnet-coverage
+    needs: build
+    runs-on: self-hosted
+    steps:
+    - name: Checkout Repository
+      uses: actions/checkout@v4
+
+    - name: Restore Dependencies
+      run: dotnet restore
+
+    - name: Build Solution
+      run: dotnet build --no-incremental
+
+    - name: Install SonarCloud Scanner
+      shell: powershell
+      run: |
+        if (-not (dotnet tool list -g | Select-String "dotnet-sonarscanner")) {
+            dotnet tool install --global dotnet-sonarscanner
+        }
+        else {
+            Write-Output "SonarScanner already installed"
+        }
+
+    - name: Install dotnet-coverage
+      shell: powershell
+      run: |
+        if (-not (dotnet tool list -g | Select-String "dotnet-coverage")) {
+            dotnet tool install --global dotnet-coverage
+        }
+        else {
+            Write-Output "dotnet-coverage already installed"
+        }
+        # Add the global tools folder to PATH for this session
+        $env:PATH = "$env:USERPROFILE\.dotnet\tools;" + $env:PATH
+
+    - name: Begin SonarCloud Analysis
+      env:
+        SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
+      shell: powershell
+      run: |
+        dotnet sonarscanner begin /k:"SurajMishraNagarro_AspNetMVCCalculator" /o:"surajmishranagarro" /d:sonar.token="${env:SONAR_TOKEN}" /d:sonar.cs.vscoveragexml.reportsPaths="coverage.xml"
+
+    - name: Run Tests with dotnet-coverage
+      shell: powershell
+      run: |
+        dotnet-coverage collect "dotnet test" -f xml -o "coverage.xml"
+
+    - name: End SonarCloud Analysis
+      env:
+        SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
+      shell: powershell
+      run: |
+        dotnet sonarscanner end /d:sonar.token="${env:SONAR_TOKEN}"
+
+
+
+
+
+
+  notify:
+    needs: [build,sonar, test, code-coverage]
+    runs-on: self-hosted
+    steps:
+      - name: Send Email on Failure
+        if: failure()
+        uses: dawidd6/action-send-mail@v3
+        with:
+          server_address: smtp.gmail.com
+          server_port: 587
+          username: ${{ secrets.EMAIL_USERNAME }}
+          password: ${{ secrets.EMAIL_PASSWORD }}
+          subject: " Build or Tests Failed: ${{ github.repository }}"
+          to: ${{ secrets.TO_EMAIL }}
+          from: "GitHub Actions <${{ secrets.EMAIL_USERNAME }}>"
+          body: |
+            Build or Tests Failed for ${{ github.repository }}
+            Repository: ${{ github.repository }}
+            Branch: ${{ github.ref }}
+            Commit: ${{ github.sha }}
+            Triggered by: ${{ github.actor }}
+
+            Check the logs: https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }}

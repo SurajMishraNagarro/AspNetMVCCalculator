@@ -14,11 +14,3 @@ A simple ASP.NET Core MVC web application for performing basic arithmetic operat
    git clone https://github.com/yourusername/CalculatorApp.git
    cd CalculatorApp 
 
-
-2. **Build and run:**
-
-    dotnet build
-    dotnet run
-
-3. **Open in Browser:**
-    https://localhost:5001/
