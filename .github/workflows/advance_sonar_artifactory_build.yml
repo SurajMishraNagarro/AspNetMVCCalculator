@@ -43,10 +43,15 @@ jobs:
           name: build-artifacts--${{ steps.version.outputs.VERSION_TAG }}
           path: '**/bin/Release/net9.0/**'
 
-      - name: Setup JFrog CLI
-        uses: jfrog/setup-jfrog-cli@v2
-        with:
-          version: '2.33.2'
+      - name: Install JFrog CLI (Non-Elevated)
+        shell: powershell
+        run: |
+            Write-Output "Downloading JFrog CLI..."
+            Invoke-WebRequest -Uri "https://releases.jfrog.io/artifactory/jfrog-cli/v2/latest/jfrog-cli-windows-amd64/jfrog.exe" -OutFile "$env:USERPROFILE\jfrog.exe"
+            # Add the directory containing jfrog.exe to PATH for this session
+            $env:PATH = "$env:USERPROFILE;" + $env:PATH
+            jfrog.exe --version
+        
   
       - name: Configure JFrog CLI
         shell: powershell
