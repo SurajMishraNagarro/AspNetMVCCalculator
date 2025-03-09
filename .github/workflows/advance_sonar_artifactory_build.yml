@@ -43,25 +43,23 @@ jobs:
           name: build-artifacts--${{ steps.version.outputs.VERSION_TAG }}
           path: '**/bin/Release/net9.0/**'
 
-      - name: Install JFrog CLI 
+      
+      - name: Create Zip Archive of Publish Folder
         shell: powershell
         run: |
-            Write-Output "Downloading JFrog CLI..."
-            Invoke-WebRequest -Uri "https://getcli.jfrog.io" -OutFile "$env:USERPROFILE\jfrog.exe"
-            # Add the directory containing jfrog.exe to PATH for this session
-            $env:PATH = "$env:USERPROFILE;" + $env:PATH
-            jfrog.exe --version
+            Write-Output "Creating zip archive of publish folder..."
+            Compress-Archive -Path "publish\*" -DestinationPath "publish\build-artifact.zip"
         
-  
-      - name: Configure JFrog CLI
+      - name: Upload Build Artifact via curl
         shell: powershell
         run: |
-            jfrog rt config --url="${{ secrets.ARTIFACTORY_URL }}" --apikey="${{ secrets.ARTIFACTORY_API_KEY }}" --interactive=false
+            $artifactPath = "publish\build-artifact.zip"
+            $targetFilePath = "builds/build-artifact.zip"  # Define where you want it in Artifactory
+            Write-Output "Uploading artifact from: $artifactPath to: $targetFilePath"
+            curl -u "suraj.mishra@nagarro.com:${{ secrets.ARTIFACTORY_API_KEY }}" -T $artifactPath "https://trialmfnpst.jfrog.io/artifactory/aspnetmvccalc-generic-local/$targetFilePath"
+            Write-Output "Artifact uploaded successfully to Artifactory at $targetFilePath"
   
-      - name: Upload Artifacts to Artifactory
-        shell: powershell
-        run: |
-            jfrog rt upload "publish/**" "aspnetmvccalc-generic-local/"
+     
 
 
   test:
