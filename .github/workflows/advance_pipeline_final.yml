@@ -64,7 +64,7 @@ jobs:
           if ($coverageFile) {
             Copy-Item $coverageFile.FullName -Destination coverage\coverage.cobertura.xml
           } else {
-            Write-Error "Coverage file not found!"
+            Write-Error "Coverage file not found!"}
 
       - name: Upload Test & Coverage Results
         uses: actions/upload-artifact@v4
