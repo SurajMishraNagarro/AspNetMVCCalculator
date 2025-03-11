@@ -39,34 +39,95 @@ jobs:
           name: build-artifacts--${{ steps.version.outputs.VERSION_TAG }}
           path: '**/bin/Release/net9.0/**'
 
-
-  upload-artifactory:
+    
+  test-and-coverage:
     needs: build
     runs-on: self-hosted
     steps:
+
       - name: Download Build Artifacts
         uses: actions/download-artifact@v4
         with:
           name: build-artifacts--${{ needs.build.outputs.VERSION_TAG }}
           path: ./publish
 
-      - name: Create Zip Archive of Publish Folder
+      - name: Run Unit Tests with Code Coverage
+        run: dotnet test --configuration Release --collect:"XPlat Code Coverage" --results-directory TestResults
+        continue-on-error: true
+
+      - name: Prepare Coverage Report
         shell: powershell
         run: |
-          Compress-Archive -Path "publish\*" -DestinationPath "publish/build-artifacts--${{ needs.build.outputs.VERSION_TAG }}.zip"
+          New-Item -ItemType Directory -Force -Path coverage
+          $coverageFile = Get-ChildItem -Path TestResults -Recurse -Filter coverage.cobertura.xml | Select-Object -First 1
+          if ($coverageFile) {
+            Copy-Item $coverageFile.FullName -Destination coverage\coverage.cobertura.xml
+          } else {
+            Write-Error "Coverage file not found!"}
 
-      - name: Upload Build Artifact to Artifactory
-        shell: powershell
-        run: |
-          $VersionTag = "${{ needs.build.outputs.VERSION_TAG }}"
-          $artifactPath = "./publish/build-artifacts--$VersionTag.zip"
-          $targetFilePath = "builds/build-artifacts--$VersionTag.zip"
+      - name: Upload Test & Coverage Results
+        uses: actions/upload-artifact@v4
+        with:
+          name: test-and-coverage--${{ needs.build.outputs.VERSION_TAG }}
+          path: |
+            TestResults
+            coverage
+          retention-days: 7
 
-          if (!(Test-Path $artifactPath)) {
-              Write-Output "Error: Zip file not found!"
-              exit 1
-          }
 
-          Write-Output "Uploading artifact to Artifactory..."
-          curl.exe -u "suraj.mishra@nagarro.com:${{ secrets.ARTIFACTORY_API_KEY }}" -T $artifactPath "https://trialmfnpst.jfrog.io/artifactory/aspnetmvccalc-generic-local/$targetFilePath"
-          Write-Output "Artifact uploaded successfully."
+    
+  # upload-artifactory:
+  #   needs: build
+  #   runs-on: self-hosted
+  #   steps:
+  #     - name: Download Build Artifacts
+  #       uses: actions/download-artifact@v4
+  #       with:
+  #         name: build-artifacts--${{ needs.build.outputs.VERSION_TAG }}
+  #         path: ./publish
+
+  #     - name: Create Zip Archive of Publish Folder
+  #       shell: powershell
+  #       run: |
+  #         Compress-Archive -Path "publish\*" -DestinationPath "publish/build-artifacts--${{ needs.build.outputs.VERSION_TAG }}.zip"
+
+  #     - name: Upload Build Artifact to Artifactory
+  #       shell: powershell
+  #       run: |
+  #         $VersionTag = "${{ needs.build.outputs.VERSION_TAG }}"
+  #         $artifactPath = "./publish/build-artifacts--$VersionTag.zip"
+  #         $targetFilePath = "builds/build-artifacts--$VersionTag.zip"
+
+  #         if (!(Test-Path $artifactPath)) {
+  #             Write-Output "Error: Zip file not found!"
+  #             exit 1
+  #         }
+
+  #         Write-Output "Uploading artifact to Artifactory..."
+  #         curl.exe -u "suraj.mishra@nagarro.com:${{ secrets.ARTIFACTORY_API_KEY }}" -T $artifactPath "https://trialmfnpst.jfrog.io/artifactory/aspnetmvccalc-generic-local/$targetFilePath"
+  #         Write-Output "Artifact uploaded successfully."
+
+  
+  # notify:
+  #   needs: [upload-artifactory]
+  #   runs-on: self-hosted
+  #   if: failure()
+  #   steps:
+  #     - name: Send Email Notification on Failure
+  #       uses: dawidd6/action-send-mail@v3
+  #       with:
+  #         server_address: smtp.gmail.com
+  #         server_port: 587
+  #         username: ${{ secrets.EMAIL_USERNAME }}
+  #         password: ${{ secrets.EMAIL_PASSWORD }}
+  #         subject: "Build or Tests Failed: ${{ github.repository }}"
+  #         to: ${{ secrets.TO_EMAIL }}
+  #         from: "GitHub Actions <${{ secrets.EMAIL_USERNAME }}>"
+  #         body: |
+  #           Build or Tests Failed for ${{ github.repository }}
+  #           Repository: ${{ github.repository }}
+  #           Branch: ${{ github.ref }}
+  #           Commit: ${{ github.sha }}
+  #           Triggered by: ${{ github.actor }}
+
+  #           Check logs: https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }}
