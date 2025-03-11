@@ -131,7 +131,7 @@ jobs:
 
     
   upload-artifactory:
-    needs: sonar
+    needs: [build,sonar]
     runs-on: self-hosted
     steps:
       - name: Download Build Artifacts
