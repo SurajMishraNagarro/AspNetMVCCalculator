@@ -77,7 +77,7 @@ jobs:
   
   sonar:
     name: SonarCloud Analysis with dotnet-coverage
-    needs: test-coverage
+    needs: [build,test-coverage]
     runs-on: self-hosted
     steps:
 
