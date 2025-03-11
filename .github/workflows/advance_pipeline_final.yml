@@ -25,48 +25,38 @@ jobs:
       - name: Determine Version Tag
         id: version
         run: |
-            $BranchName="${{ github.ref_name }}".Replace("/", "-")
-            $ShortHash=$(git rev-parse --short HEAD)
-            $VersionTag="$BranchName-$ShortHash"
-            echo "VERSION_TAG=$VersionTag" >> $GITHUB_ENV
-            echo "VERSION_TAG=$VersionTag" >> $GITHUB_OUTPUT  # ✅ Set as output
+          $BranchName = "${{ github.ref_name }}".Replace("/", "-")
+          $ShortHash = $(git rev-parse --short HEAD)
+          $VersionTag = "$BranchName-$ShortHash"
+          echo "VERSION_TAG=$VersionTag" >> $env:GITHUB_ENV
 
-      - name: Publish Build Artifact
-        run: dotnet publish --configuration Release --output ./publish
-
-      - name: Upload Build Artifacts
+      - name: Upload Build Artifacts with Versioning
         uses: actions/upload-artifact@v4
         with:
-          name: build-artifacts-${{ steps.version.outputs.VERSION_TAG }}  # ✅ Use correct output
-          path: './publish'
+          name: build-artifacts--${{ env.VERSION_TAG }}
+          path: 'bin/Release/**'
 
   upload-artifactory:
-    needs: [build]
+    needs: build
     runs-on: self-hosted
     steps:
       - name: Download Build Artifacts
         uses: actions/download-artifact@v4
         with:
-          name: build-artifacts-${{ needs.build.outputs.VERSION_TAG }}  # ✅ Use correct version
+          name: build-artifacts--${{ needs.build.outputs.VERSION_TAG }}
           path: ./publish
 
       - name: Create Zip Archive of Publish Folder
         shell: powershell
         run: |
-          $VersionTag="${{ needs.build.outputs.VERSION_TAG }}"
-          if ($VersionTag -eq "") {
-              Write-Output "Error: VERSION_TAG is empty!"
-              exit 1
-          }
-          Write-Output "Creating zip archive with version: $VersionTag"
-          Compress-Archive -Path "publish\*" -DestinationPath "publish\build-artifact-$VersionTag.zip"
+          Compress-Archive -Path "publish\*" -DestinationPath "publish/build-artifacts--${{ needs.build.outputs.VERSION_TAG }}.zip"
 
       - name: Upload Build Artifact to Artifactory
         shell: powershell
         run: |
-          $VersionTag="${{ needs.build.outputs.VERSION_TAG }}"
-          $artifactPath="publish\build-artifact-$VersionTag.zip"
-          $targetFilePath="builds/build-artifact-$VersionTag.zip"
+          $VersionTag = "${{ needs.build.outputs.VERSION_TAG }}"
+          $artifactPath = "./publish/build-artifacts--$VersionTag.zip"
+          $targetFilePath = "builds/build-artifacts--$VersionTag.zip"
 
           if (!(Test-Path $artifactPath)) {
               Write-Output "Error: Zip file not found!"
@@ -76,5 +66,3 @@ jobs:
           Write-Output "Uploading artifact to Artifactory..."
           curl.exe -u "suraj.mishra@nagarro.com:${{ secrets.ARTIFACTORY_API_KEY }}" -T $artifactPath "https://trialmfnpst.jfrog.io/artifactory/aspnetmvccalc-generic-local/$targetFilePath"
           Write-Output "Artifact uploaded successfully."
-
-  
