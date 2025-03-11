@@ -88,39 +88,48 @@ jobs:
           name: build-artifacts--${{ needs.build.outputs.VERSION_TAG }}
           path: ./publish
 
-      - name: Download Coverage Report
-        uses: actions/download-artifact@v4
-        with:
-          name: test-and-coverage--${{ needs.build.outputs.VERSION_TAG }}
-          path: coverage
 
-      - name: Install SonarCloud Scanner & ReportGenerator
+      - name: Install SonarCloud Scanner
         shell: powershell
         run: |
-          if (-not (dotnet tool list -g | Select-String "dotnet-sonarscanner")) {
-            dotnet tool install --global dotnet-sonarscanner
-          }
-          if (-not (dotnet tool list -g | Select-String "dotnet-reportgenerator-globaltool")) {
-            dotnet tool install --global dotnet-reportgenerator-globaltool
-          }
-
-      - name: Convert Cobertura to OpenCover
+            if (-not (dotnet tool list -g | Select-String "dotnet-sonarscanner")) {
+                dotnet tool install --global dotnet-sonarscanner
+            }
+            else {
+                Write-Output "SonarScanner already installed"
+            }
+    
+      - name: Install dotnet-coverage
+        shell: powershell
         run: |
-          reportgenerator -reports:coverage/coverage/coverage.cobertura.xml -targetdir:coverage -reporttypes:opencover
-
+            if (-not (dotnet tool list -g | Select-String "dotnet-coverage")) {
+                dotnet tool install --global dotnet-coverage
+            }
+            else {
+                Write-Output "dotnet-coverage already installed"
+            }
+            # Add the global tools folder to PATH for this session
+            $env:PATH = "$env:USERPROFILE\.dotnet\tools;" + $env:PATH
+    
       - name: Begin SonarCloud Analysis
         env:
-          SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
+            SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
+        shell: powershell
         run: |
-          dotnet sonarscanner begin /k:"SurajMishraNagarro_AspNetMVCCalculator" /o:"surajmishranagarro" /d:sonar.token="${env:SONAR_TOKEN}" /d:sonar.cs.opencover.reportPaths=coverage/opencover.xml
-
+            dotnet sonarscanner begin /k:"SurajMishraNagarro_AspNetMVCCalculator" /o:"surajmishranagarro" /d:sonar.token="${env:SONAR_TOKEN}" /d:sonar.cs.vscoveragexml.reportsPaths="coverage.xml"
+    
+      - name: Run Tests with dotnet-coverage
+        shell: powershell
+        run: |
+            dotnet-coverage collect "dotnet test" -f xml -o "coverage.xml"
+    
       - name: End SonarCloud Analysis
         env:
-          SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
+            SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
+        shell: powershell
         run: |
-          dotnet sonarscanner end /d:sonar.token="${env:SONAR_TOKEN}"
-
-
+            dotnet sonarscanner end /d:sonar.token="${env:SONAR_TOKEN}"
+    
 
   upload-artifactory:
     needs: [test-and-coverage, sonar]
