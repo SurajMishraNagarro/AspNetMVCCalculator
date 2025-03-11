@@ -25,10 +25,11 @@ jobs:
       - name: Determine Version Tag
         id: version
         run: |
-            $BranchName = "${{ github.ref_name }}".Replace("/", "-")
-            $ShortHash = $(git rev-parse --short HEAD)
-            $VersionTag = "$BranchName-$ShortHash"
+            $BranchName="${{ github.ref_name }}".Replace("/", "-")
+            $ShortHash=$(git rev-parse --short HEAD)
+            $VersionTag="$BranchName-$ShortHash"
             echo "VERSION_TAG=$VersionTag" >> $GITHUB_ENV
+            echo "VERSION_TAG=$VersionTag" >> $GITHUB_OUTPUT  # ✅ Set as output
 
       - name: Publish Build Artifact
         run: dotnet publish --configuration Release --output ./publish
@@ -36,92 +37,44 @@ jobs:
       - name: Upload Build Artifacts
         uses: actions/upload-artifact@v4
         with:
-          name: build-artifacts--${{ env.VERSION_TAG }}
+          name: build-artifacts-${{ steps.version.outputs.VERSION_TAG }}  # ✅ Use correct output
           path: './publish'
 
-  # test-and-coverage:
-  #   needs: build
-  #   runs-on: self-hosted
-  #   steps:
-  #     # - name: Checkout Repository
-  #     #   uses: actions/checkout@v4
-
-  #     - name: Download Build Artifacts
-  #       uses: actions/download-artifact@v4
-  #       with:
-  #         name: build-artifacts--${{ needs.build.outputs.VERSION_TAG }}
-  #         path: ./publish
-
-  #     - name: Run Unit Tests with Code Coverage
-  #       run: dotnet test --configuration Release --collect:"XPlat Code Coverage" --results-directory TestResults
-  #       continue-on-error: true
-
-  #     - name: Prepare Coverage Report
-  #       shell: powershell
-  #       run: |
-  #         New-Item -ItemType Directory -Force -Path coverage
-  #         $coverageFile = Get-ChildItem -Path TestResults -Recurse -Filter coverage.cobertura.xml | Select-Object -First 1
-  #         if ($coverageFile) {
-  #           Copy-Item $coverageFile.FullName -Destination coverage\coverage.cobertura.xml
-  #         } else {
-  #           Write-Error "Coverage file not found!"}
-
-  #     - name: Upload Test & Coverage Results
-  #       uses: actions/upload-artifact@v4
-  #       with:
-  #         name: test-and-coverage--${{ needs.build.outputs.VERSION_TAG }}
-  #         path: |
-  #           TestResults
-  #           coverage
-  #         retention-days: 7
-
-    
-
   upload-artifactory:
-    needs: [build,]
+    needs: [build]
     runs-on: self-hosted
     steps:
       - name: Download Build Artifacts
         uses: actions/download-artifact@v4
         with:
-          name: build-artifacts--${{ needs.build.outputs.VERSION_TAG }}
+          name: build-artifacts-${{ needs.build.outputs.VERSION_TAG }}  # ✅ Use correct version
           path: ./publish
 
       - name: Create Zip Archive of Publish Folder
         shell: powershell
         run: |
-          Write-Output "Creating zip archive..."
-          Compress-Archive -Path "publish\*" -DestinationPath "publish\build-artifact-${{ needs.build.outputs.VERSION_TAG }}.zip"
+          $VersionTag="${{ needs.build.outputs.VERSION_TAG }}"
+          if ($VersionTag -eq "") {
+              Write-Output "Error: VERSION_TAG is empty!"
+              exit 1
+          }
+          Write-Output "Creating zip archive with version: $VersionTag"
+          Compress-Archive -Path "publish\*" -DestinationPath "publish\build-artifact-$VersionTag.zip"
 
       - name: Upload Build Artifact to Artifactory
         shell: powershell
         run: |
-          $artifactPath = "publish\build-artifact--${{ needs.build.outputs.VERSION_TAG }}.zip"
-          $targetFilePath = "builds/build-artifact--${{ needs.build.outputs.VERSION_TAG }}.zip"
+          $VersionTag="${{ needs.build.outputs.VERSION_TAG }}"
+          $artifactPath="publish\build-artifact-$VersionTag.zip"
+          $targetFilePath="builds/build-artifact-$VersionTag.zip"
+
+          if (!(Test-Path $artifactPath)) {
+              Write-Output "Error: Zip file not found!"
+              exit 1
+          }
+
           Write-Output "Uploading artifact to Artifactory..."
           curl.exe -u "suraj.mishra@nagarro.com:${{ secrets.ARTIFACTORY_API_KEY }}" -T $artifactPath "https://trialmfnpst.jfrog.io/artifactory/aspnetmvccalc-generic-local/$targetFilePath"
           Write-Output "Artifact uploaded successfully."
 
-  notify:
-    needs: [upload-artifactory]
-    runs-on: self-hosted
-    if: failure()
-    steps:
-      - name: Send Email Notification on Failure
-        uses: dawidd6/action-send-mail@v3
-        with:
-          server_address: smtp.gmail.com
-          server_port: 587
-          username: ${{ secrets.EMAIL_USERNAME }}
-          password: ${{ secrets.EMAIL_PASSWORD }}
-          subject: "Build or Tests Failed: ${{ github.repository }}"
-          to: ${{ secrets.TO_EMAIL }}
-          from: "GitHub Actions <${{ secrets.EMAIL_USERNAME }}>"
-          body: |
-            Build or Tests Failed for ${{ github.repository }}
-            Repository: ${{ github.repository }}
-            Branch: ${{ github.ref }}
-            Commit: ${{ github.sha }}
-            Triggered by: ${{ github.actor }}
-
-            Check logs: https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }}
+  
