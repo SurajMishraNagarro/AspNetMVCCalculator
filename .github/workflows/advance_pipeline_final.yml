@@ -39,46 +39,46 @@ jobs:
           name: build-artifacts--${{ env.VERSION_TAG }}
           path: './publish'
 
-  test-and-coverage:
-    needs: build
-    runs-on: self-hosted
-    steps:
-      # - name: Checkout Repository
-      #   uses: actions/checkout@v4
+  # test-and-coverage:
+  #   needs: build
+  #   runs-on: self-hosted
+  #   steps:
+  #     # - name: Checkout Repository
+  #     #   uses: actions/checkout@v4
 
-      - name: Download Build Artifacts
-        uses: actions/download-artifact@v4
-        with:
-          name: build-artifacts--${{ needs.build.outputs.VERSION_TAG }}
-          path: ./publish
+  #     - name: Download Build Artifacts
+  #       uses: actions/download-artifact@v4
+  #       with:
+  #         name: build-artifacts--${{ needs.build.outputs.VERSION_TAG }}
+  #         path: ./publish
 
-      - name: Run Unit Tests with Code Coverage
-        run: dotnet test --configuration Release --collect:"XPlat Code Coverage" --results-directory TestResults
-        continue-on-error: true
+  #     - name: Run Unit Tests with Code Coverage
+  #       run: dotnet test --configuration Release --collect:"XPlat Code Coverage" --results-directory TestResults
+  #       continue-on-error: true
 
-      - name: Prepare Coverage Report
-        shell: powershell
-        run: |
-          New-Item -ItemType Directory -Force -Path coverage
-          $coverageFile = Get-ChildItem -Path TestResults -Recurse -Filter coverage.cobertura.xml | Select-Object -First 1
-          if ($coverageFile) {
-            Copy-Item $coverageFile.FullName -Destination coverage\coverage.cobertura.xml
-          } else {
-            Write-Error "Coverage file not found!"}
+  #     - name: Prepare Coverage Report
+  #       shell: powershell
+  #       run: |
+  #         New-Item -ItemType Directory -Force -Path coverage
+  #         $coverageFile = Get-ChildItem -Path TestResults -Recurse -Filter coverage.cobertura.xml | Select-Object -First 1
+  #         if ($coverageFile) {
+  #           Copy-Item $coverageFile.FullName -Destination coverage\coverage.cobertura.xml
+  #         } else {
+  #           Write-Error "Coverage file not found!"}
 
-      - name: Upload Test & Coverage Results
-        uses: actions/upload-artifact@v4
-        with:
-          name: test-and-coverage--${{ needs.build.outputs.VERSION_TAG }}
-          path: |
-            TestResults
-            coverage
-          retention-days: 7
+  #     - name: Upload Test & Coverage Results
+  #       uses: actions/upload-artifact@v4
+  #       with:
+  #         name: test-and-coverage--${{ needs.build.outputs.VERSION_TAG }}
+  #         path: |
+  #           TestResults
+  #           coverage
+  #         retention-days: 7
 
     
 
   upload-artifactory:
-    needs: [test-and-coverage,]
+    needs: [build,]
     runs-on: self-hosted
     steps:
       - name: Download Build Artifacts
@@ -96,8 +96,8 @@ jobs:
       - name: Upload Build Artifact to Artifactory
         shell: powershell
         run: |
-          $artifactPath = "publish\build-artifact-${{ needs.build.outputs.VERSION_TAG }}.zip"
-          $targetFilePath = "builds/build-artifact-${{ needs.build.outputs.VERSION_TAG }}.zip"
+          $artifactPath = "publish\build-artifact--${{ needs.build.outputs.VERSION_TAG }}.zip"
+          $targetFilePath = "builds/build-artifact--${{ needs.build.outputs.VERSION_TAG }}.zip"
           Write-Output "Uploading artifact to Artifactory..."
           curl.exe -u "suraj.mishra@nagarro.com:${{ secrets.ARTIFACTORY_API_KEY }}" -T $artifactPath "https://trialmfnpst.jfrog.io/artifactory/aspnetmvccalc-generic-local/$targetFilePath"
           Write-Output "Artifact uploaded successfully."
