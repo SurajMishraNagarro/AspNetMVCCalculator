@@ -80,14 +80,20 @@ jobs:
     needs: build
     runs-on: self-hosted
     steps:
-    - name: Checkout Repository
-      uses: actions/checkout@v4
+    # - name: Checkout Repository
+    #   uses: actions/checkout@v4
 
-    - name: Restore Dependencies
-      run: dotnet restore
+    # - name: Restore Dependencies
+    #   run: dotnet restore
 
-    - name: Build Solution
-      run: dotnet build --no-incremental
+    # - name: Build Solution
+    #   run: dotnet build --no-incremental
+
+    - name: Download Build Artifacts
+      uses: actions/download-artifact@v4
+      with:
+          name: build-artifacts--${{ needs.build.outputs.VERSION_TAG }}
+          path: ./publish
 
     - name: Install SonarCloud Scanner
       shell: powershell
