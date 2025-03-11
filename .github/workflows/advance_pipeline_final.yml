@@ -106,7 +106,7 @@ jobs:
 
       - name: Convert Cobertura to OpenCover
         run: |
-          reportgenerator -reports:coverage/coverage.cobertura.xml -targetdir:coverage -reporttypes:opencover
+          reportgenerator -reports:coverage/coverage/coverage.cobertura.xml -targetdir:coverage -reporttypes:opencover
 
       - name: Begin SonarCloud Analysis
         env:
